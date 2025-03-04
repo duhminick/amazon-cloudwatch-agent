@@ -23,6 +23,7 @@ func NewFactory() receiver.Factory {
 func createDefaultConfig() component.Config {
 	return &Config{
 		scraperhelper.NewDefaultControllerConfig(),
+		metadata.DefaultMetricsBuilderConfig(),
 	}
 }
 
@@ -33,7 +34,7 @@ func createMetricsReceiver(
 	consumer consumer.Metrics,
 ) (receiver.Metrics, error) {
 	cfg := baseCfg.(*Config)
-	nvmeScraper := newScraper(settings.Logger)
+	nvmeScraper := newScraper(cfg, settings)
 	scraper, err := otelscraper.NewMetrics(nvmeScraper.scrape, otelscraper.WithStart(nvmeScraper.start), otelscraper.WithShutdown(nvmeScraper.shutdown))
 	if err != nil {
 		return nil, err

@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/receiver"
 	"go.uber.org/zap"
 )
 
@@ -24,7 +25,7 @@ const (
 
 type nvmeScraper struct {
 	logger *zap.Logger
-	// mb *metadata.MetricsBuilder
+	mb     *metadata.MetricsBuilder
 }
 
 func (s *nvmeScraper) start(_ context.Context, _ component.Host) error {
@@ -40,10 +41,14 @@ func (s *nvmeScraper) shutdown(_ context.Context) error {
 func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 	s.logger.Info("[DOMINIC] Running NVME scraper")
 
-	metric := pmetric.NewMetrics()
-	// now := pcommon.NewTimestampFromTime(time.Now())
+	now := pcommon.NewTimestampFromTime(time.Now())
 
-	return metric, nil
+	s.mb.RecordTotalReadOpsDataPoint(now, 100)
+	rb := s.mb.NewResourceBuilder()
+	rb.SetVolumeID("vol-1234")
+	s.mb.EmitForResource(metadata.WithResource(rb.Emit()))
+
+	return s.mb.Emit(), nil
 }
 
 func getNvmeDevices() ([]string, error) {
@@ -97,9 +102,9 @@ func getNvmeDeviceSerial(device string) (string, error) {
 // func getNvmeDevices() ([]string, error) {
 // }
 
-func newScraper(logger *zap.Logger) *nvmeScraper {
+func newScraper(cfg *Config, settings receiver.Settings) *nvmeScraper {
 	return &nvmeScraper{
-		logger: logger,
-		// mb: metadata.NewMetricsBuilder()
+		logger: settings.TelemetrySettings.Logger,
+		mb:     metadata.NewMetricsBuilder(cfg.MetricsBuilderConfig, settings),
 	}
 }

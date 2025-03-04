@@ -9,7 +9,7 @@ status:
     active: [duhminick]
 
 resource_attributes:
-  volume_id:
+  VolumeId:
     enabled: true
     description: Unique identifier to the EBS volume
     type: string
