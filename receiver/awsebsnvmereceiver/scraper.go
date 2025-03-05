@@ -115,6 +115,7 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 	return devices, nil
 }
 
+// TODO: move to internal/nvme/
 func getNvmeDevices() ([]string, error) {
 	entries, err := os.ReadDir(devDirectoryPath)
 	if err != nil {
@@ -131,6 +132,7 @@ func getNvmeDevices() ([]string, error) {
 	return devices, nil
 }
 
+// TODO: move to internal/nvme/
 func getNvmeDeviceSerial(device string) (string, error) {
 	data, err := os.ReadFile(fmt.Sprintf("/sys/class/nvme/%s/serial", device))
 	if err != nil {

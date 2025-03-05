@@ -108,6 +108,7 @@ func withPartition(partition string) Attribute {
 	})
 }
 
+// TODO: evaluate if this is really needed with the new parsing logic
 func substring(s string, l, r int) string {
 	if l < 0 {
 		return ""
@@ -122,6 +123,7 @@ func substring(s string, l, r int) string {
 	return s[l:r]
 }
 
+// TODO: return error?
 func atoiOrNegative(a string) int {
 	i, err := strconv.Atoi(a)
 	if err != nil {
