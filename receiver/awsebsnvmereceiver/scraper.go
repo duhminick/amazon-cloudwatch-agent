@@ -5,10 +5,8 @@ package awsebsnvmereceiver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -49,8 +47,6 @@ func (s *nvmeScraper) shutdown(_ context.Context) error {
 }
 
 func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
-	s.logger.Info("[DOMINIC] Running NVMe scraper")
-
 	now := pcommon.NewTimestampFromTime(time.Now())
 
 	ebsDevices, err := s.getEbsDevices()
@@ -64,7 +60,7 @@ func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 			s.logger.Info("unable to get metrics for device", zap.String("device", device.deviceName), zap.Error(err))
 			continue
 		}
-		s.logger.Info("emitting metrics for device", zap.String("device", device.deviceName))
+		s.logger.Info("emitting metrics for device", zap.String("device", device.deviceName), zap.Int("read_ops", int(metrics.ReadOps)), zap.String("volumeId", device.volumeId))
 
 		rb := s.mb.NewResourceBuilder()
 		s.mb.RecordTotalReadOpsDataPoint(now, int64(metrics.ReadOps))
@@ -75,33 +71,29 @@ func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 	return s.mb.Emit(), nil
 }
 
-func (s *nvmeScraper) getEbsDevices() (map[string]ebsDevice, error) {
+func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 	allNvmeDevices, err := getNvmeDevices()
 	if err != nil {
 		return nil, err
 	}
 
-	devices := make(map[string]ebsDevice)
+	devices := make(map[int]ebsDevice)
 
 	for _, device := range allNvmeDevices {
-		// Only want nvme{id}.
-		// Ignore:
-		// - nvme{controller}n{namespace}
-		// - nvme{controller}n{namespace}p{partition}
-		trimmed := strings.TrimPrefix(device, nvmeDevicePrefix)
-		if !strings.Contains(trimmed, "n") {
-			s.logger.Debug("skipping device because we will likely not have permission", zap.String("device", device))
-			continue
-		}
-
-		serial, err := getNvmeDeviceSerial(device)
-		if err != nil {
-			s.logger.Debug("unable to get serial number of device", zap.String("device", device))
+		attr, err := nvme.ParseNvmeDeviceFileName(device)
+		if err != nil || attr.Controller() == -1 || attr.Namespace() == -1 {
+			s.logger.Debug("skipping invalid device", zap.String("device", device))
 			continue
 		}
 
 		// Skip if we already have a device we can use
-		if _, ok := devices[serial]; ok {
+		if _, ok := devices[attr.Controller()]; ok {
+			continue
+		}
+
+		serial, err := getNvmeDeviceSerial(fmt.Sprintf("nvme%d", attr.Controller()))
+		if err != nil {
+			s.logger.Debug("unable to get serial number of device", zap.String("device", device))
 			continue
 		}
 
@@ -110,7 +102,7 @@ func (s *nvmeScraper) getEbsDevices() (map[string]ebsDevice, error) {
 			continue
 		}
 
-		devices[serial] = ebsDevice{
+		devices[attr.Controller()] = ebsDevice{
 			deviceName: device,
 			devicePath: fmt.Sprintf("/dev/%s", device),
 			volumeId:   fmt.Sprintf("vol-%s", serial[2:]),
@@ -141,7 +133,7 @@ func getNvmeDeviceSerial(device string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return strings.TrimSuffix(string(data), "\n"), nil
 }
 
 // Use mountinfo to get NVMe devices
