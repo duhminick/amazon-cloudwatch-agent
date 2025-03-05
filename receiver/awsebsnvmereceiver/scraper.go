@@ -5,8 +5,10 @@ package awsebsnvmereceiver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,12 +36,6 @@ type ebsDevice struct {
 	deviceName string
 	devicePath string
 	volumeId   string
-}
-
-type nvmeDeviceFileAttributes struct {
-	controller int
-	namespace int
-	partition int
 }
 
 func (s *nvmeScraper) start(_ context.Context, _ component.Host) error {
@@ -122,10 +118,6 @@ func (s *nvmeScraper) getEbsDevices() (map[string]ebsDevice, error) {
 	}
 
 	return devices, nil
-}
-
-func parseNvmeDeviceFileName(device string) (nvmeDeviceFileAttributes, error) {
-	return nvmeDeviceFileAttributes{}, nil
 }
 
 func getNvmeDevices() ([]string, error) {
