@@ -26,6 +26,8 @@ func (f nvmeDeviceAttributeFunc) apply(e *NvmeDeviceFileAttributes) {
 	f(e)
 }
 
+// TODO: if the format is invalid, we shouldn't silently fail
+// TODO: also this seems overly complicated. maybe simplify. evaluate just using a regex instead
 func ParseNvmeDeviceFileName(device string) (NvmeDeviceFileAttributes, error) {
 	if !strings.HasPrefix(device, nvmeDevicePrefix) {
 		return NvmeDeviceFileAttributes{

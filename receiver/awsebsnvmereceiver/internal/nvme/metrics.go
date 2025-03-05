@@ -77,6 +77,7 @@ func GetMetrics(devicePath string) (EBSMetrics, error) {
 	return parseLogPage(data)
 }
 
+// TODO: normalize some of these names
 // getNVMEMetrics retrieves NVMe metrics by reading the log page from the NVMe device at the given path.
 func getNVMEMetrics(devicePath string) ([]byte, error) {
 	f, err := os.OpenFile(devicePath, os.O_RDWR, 0)

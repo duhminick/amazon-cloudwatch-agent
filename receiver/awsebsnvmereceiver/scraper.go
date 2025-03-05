@@ -30,12 +30,14 @@ type nvmeScraper struct {
 	mb     *metadata.MetricsBuilder
 }
 
+// TODO: move this into internal/nvme probably
 type ebsDevice struct {
 	deviceName string
 	devicePath string
 	volumeId   string
 }
 
+// TODO: probably do not need start & shutdown logic
 func (s *nvmeScraper) start(_ context.Context, _ component.Host) error {
 	s.logger.Debug("Starting NVMe scraper", zap.String("receiver", metadata.Type.String()))
 	return nil
@@ -46,6 +48,7 @@ func (s *nvmeScraper) shutdown(_ context.Context) error {
 	return nil
 }
 
+// TODO: clean up log messages
 func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 	now := pcommon.NewTimestampFromTime(time.Now())
 
