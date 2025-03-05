@@ -94,6 +94,8 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 			continue
 		}
 
+		// TODO: we can probably add a check for the model too
+
 		serial, err := getNvmeDeviceSerial(fmt.Sprintf("nvme%d", attr.Controller()))
 		if err != nil {
 			s.logger.Debug("unable to get serial number of device", zap.String("device", device))
