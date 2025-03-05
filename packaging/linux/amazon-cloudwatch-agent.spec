@@ -95,6 +95,9 @@ if ! groups cwagent | grep -q "\bdisk\b"; then
     echo "Added cwagent to disk group, result: $?"
 fi
 
+%post
+setcap cap_sys_admin+ep /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent
+
 %preun
 # Stop the agent after uninstall
 if [ $1 -eq 0 ] ; then
