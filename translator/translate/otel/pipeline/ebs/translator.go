@@ -5,7 +5,6 @@ package ebs
 
 import (
 	"fmt"
-	"log"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/confmap"
@@ -14,56 +13,86 @@ import (
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/common"
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/exporter/awscloudwatch"
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/extension/agenthealth"
+	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/processor/ec2taggerprocessor"
+	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/processor/filterprocessor"
+	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/receiver/awsebsnvme"
 )
 
 const (
-	// PipelineName is the name of the EBS metrics pipeline
-	PipelineName = "metric/ebs"
-)
-
-var (
-	metricsKey = common.ConfigKey(common.MetricsKey, common.MetricsCollectedKey)
+	ebsPipelineName = common.PipelineNameEbs
 )
 
 type translator struct {
+	pipelineName string
+	common.DestinationProvider
 }
 
-var _ common.PipelineTranslator = (*translator)(nil)
+var (
+	baseKey = common.ConfigKey(common.MetricsKey, common.MetricsCollectedKey)
+	diskioKey = common.ConfigKey(baseKey, common.DiskIOKey)
+	_ common.PipelineTranslator = (*translator)(nil)
+)
 
-func NewTranslator() common.PipelineTranslator {
-	return &translator{}
+func NewTranslator(
+	opts ...common.TranslatorOption,
+) common.PipelineTranslator {
+	t := &translator{pipelineName: ebsPipelineName}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t
 }
 
 func (t *translator) ID() pipeline.ID {
-	return pipeline.NewIDWithName(pipeline.SignalMetrics, PipelineName)
+	return pipeline.NewIDWithName(pipeline.SignalMetrics, t.pipelineName)
 }
 
 // Translate creates a pipeline for EBS metrics
 func (t *translator) Translate(conf *confmap.Conf) (*common.ComponentTranslators, error) {
-	if conf == nil || !conf.IsSet(metricsKey) {
-		return nil, &common.MissingKeyError{ID: t.ID(), JsonKey: metricsKey}
+	if conf == nil || !conf.IsSet(diskioKey) {
+		return nil, &common.MissingKeyError{ID: t.ID(), JsonKey: common.DiskIOKey}
 	}
 
-	log.Printf("D! Setting up EBS metrics pipeline")
+	if measurement := common.GetArray[any](conf, common.ConfigKey(diskioKey, common.MeasurementKey)); measurement != nil && len(measurement) == 0 {
+		return nil, &common.MissingKeyError{ID: t.ID(), JsonKey: common.ConfigKey(diskioKey, common.MeasurementKey)}
+	}
+
 
 	translators := common.ComponentTranslators{
-		Receivers:  common.NewTranslatorMap[component.Config, component.ID](),
-		Processors: common.NewTranslatorMap[component.Config, component.ID](),
-		Exporters:  common.NewTranslatorMap(awscloudwatch.NewTranslator()),
+		Receivers: common.NewTranslatorMap(
+			awsebsnvme.NewTranslator(common.WithName(t.pipelineName)),
+		),
+		Processors: common.NewTranslatorMap(
+			filterprocessor.NewTranslator(common.WithName(t.pipelineName)),
+		),
+		Exporters: common.NewTranslatorMap[component.Config, component.ID](),
 		Extensions: common.NewTranslatorMap(
 			agenthealth.NewTranslator(agenthealth.MetricsName, []string{agenthealth.OperationPutMetricData}),
 			agenthealth.NewTranslatorWithStatusCode(agenthealth.StatusCodeName, nil, true),
 		),
 	}
 
-	// For now, receivers are left empty as per requirements
-	// In the future, specific EBS receivers would be added here
+	// 3. Metric transform processor
+	// translators.Processors.Set(metricstransformprocessor.NewTranslator(
+	// 	metricstransformprocessor.WithPipelineName(PipelineName),
+	// ))
 
-	// Check if we have any receivers to create a pipeline
-	if translators.Receivers.Len() == 0 {
-		log.Printf("D! No receivers configured for EBS metrics pipeline")
-		// We're still creating the pipeline structure even without receivers
-		// as requested in the requirements
+	// 4. EC2 tagger processor
+	if conf.IsSet(common.ConfigKey(common.MetricsKey, common.AppendDimensionsKey)) {
+		translators.Processors.Set(ec2taggerprocessor.NewTranslator())
+	}
+
+	// 5. Cumulative to delta processor
+	// translators.Processors.Set(cumulativetodeltaprocessor.NewTranslator(
+	// 	common.WithName(PipelineName),
+	// 	cumulativetodeltaprocessor.WithDefaultKeys(),
+	// ))
+
+	switch t.Destination() {
+	case common.DefaultDestination, common.CloudWatchKey:
+		translators.Exporters.Set(awscloudwatch.NewTranslator())
+	default:
+		return nil, fmt.Errorf("pipeline (%s) does not support destination (%s) in configuration", t.pipelineName, t.Destination())
 	}
 
 	return &translators, nil
