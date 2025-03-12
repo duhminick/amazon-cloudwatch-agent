@@ -177,6 +177,13 @@ func TestTranslator(t *testing.T) {
 			detector:       eksdetector.TestEKSDetector,
 			isEKSDataStore: eksdetector.TestIsEKSCacheEKS,
 		},
+		"WithEBSMetricsEnabled": {
+			input: map[string]interface{}{
+				"metrics": map[string]interface{}{
+					"metrics_collected": map[string]interface{}{},
+				},
+			},
+		},
 		"WithAMPDestinationConfig": {
 			input: map[string]interface{}{
 				"metrics": map[string]interface{}{
