@@ -21,10 +21,10 @@ func NewResourceBuilder(rac ResourceAttributesConfig) *ResourceBuilder {
 	}
 }
 
-// SetVolumeID sets provided value as "volume_id" attribute.
+// SetVolumeID sets provided value as "VolumeId" attribute.
 func (rb *ResourceBuilder) SetVolumeID(val string) {
 	if rb.config.VolumeID.Enabled {
-		rb.res.Attributes().PutStr("volume_id", val)
+		rb.res.Attributes().PutStr("VolumeId", val)
 	}
 }
 

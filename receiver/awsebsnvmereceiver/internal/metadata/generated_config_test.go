@@ -26,7 +26,17 @@ func TestMetricsBuilderConfig(t *testing.T) {
 			name: "all_set",
 			want: MetricsBuilderConfig{
 				Metrics: MetricsConfig{
-					TotalReadOps: MetricConfig{Enabled: true},
+					DiskioEbsEc2InstancePerformanceExceededIops: MetricConfig{Enabled: true},
+					DiskioEbsEc2InstancePerformanceExceededTp:   MetricConfig{Enabled: true},
+					DiskioEbsTotalReadBytes:                     MetricConfig{Enabled: true},
+					DiskioEbsTotalReadOps:                       MetricConfig{Enabled: true},
+					DiskioEbsTotalReadTime:                      MetricConfig{Enabled: true},
+					DiskioEbsTotalWriteBytes:                    MetricConfig{Enabled: true},
+					DiskioEbsTotalWriteOps:                      MetricConfig{Enabled: true},
+					DiskioEbsTotalWriteTime:                     MetricConfig{Enabled: true},
+					DiskioEbsVolumePerformanceExceededIops:      MetricConfig{Enabled: true},
+					DiskioEbsVolumePerformanceExceededTp:        MetricConfig{Enabled: true},
+					DiskioEbsVolumeQueueLength:                  MetricConfig{Enabled: true},
 				},
 				ResourceAttributes: ResourceAttributesConfig{
 					VolumeID: ResourceAttributeConfig{Enabled: true},
@@ -37,7 +47,17 @@ func TestMetricsBuilderConfig(t *testing.T) {
 			name: "none_set",
 			want: MetricsBuilderConfig{
 				Metrics: MetricsConfig{
-					TotalReadOps: MetricConfig{Enabled: false},
+					DiskioEbsEc2InstancePerformanceExceededIops: MetricConfig{Enabled: false},
+					DiskioEbsEc2InstancePerformanceExceededTp:   MetricConfig{Enabled: false},
+					DiskioEbsTotalReadBytes:                     MetricConfig{Enabled: false},
+					DiskioEbsTotalReadOps:                       MetricConfig{Enabled: false},
+					DiskioEbsTotalReadTime:                      MetricConfig{Enabled: false},
+					DiskioEbsTotalWriteBytes:                    MetricConfig{Enabled: false},
+					DiskioEbsTotalWriteOps:                      MetricConfig{Enabled: false},
+					DiskioEbsTotalWriteTime:                     MetricConfig{Enabled: false},
+					DiskioEbsVolumePerformanceExceededIops:      MetricConfig{Enabled: false},
+					DiskioEbsVolumePerformanceExceededTp:        MetricConfig{Enabled: false},
+					DiskioEbsVolumeQueueLength:                  MetricConfig{Enabled: false},
 				},
 				ResourceAttributes: ResourceAttributesConfig{
 					VolumeID: ResourceAttributeConfig{Enabled: false},

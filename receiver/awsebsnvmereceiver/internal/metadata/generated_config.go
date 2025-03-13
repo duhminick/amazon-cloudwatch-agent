@@ -25,12 +25,52 @@ func (ms *MetricConfig) Unmarshal(parser *confmap.Conf) error {
 
 // MetricsConfig provides config for awsebsnvmereceiver metrics.
 type MetricsConfig struct {
-	TotalReadOps MetricConfig `mapstructure:"total_read_ops"`
+	DiskioEbsEc2InstancePerformanceExceededIops MetricConfig `mapstructure:"diskio_ebs_ec2_instance_performance_exceeded_iops"`
+	DiskioEbsEc2InstancePerformanceExceededTp   MetricConfig `mapstructure:"diskio_ebs_ec2_instance_performance_exceeded_tp"`
+	DiskioEbsTotalReadBytes                     MetricConfig `mapstructure:"diskio_ebs_total_read_bytes"`
+	DiskioEbsTotalReadOps                       MetricConfig `mapstructure:"diskio_ebs_total_read_ops"`
+	DiskioEbsTotalReadTime                      MetricConfig `mapstructure:"diskio_ebs_total_read_time"`
+	DiskioEbsTotalWriteBytes                    MetricConfig `mapstructure:"diskio_ebs_total_write_bytes"`
+	DiskioEbsTotalWriteOps                      MetricConfig `mapstructure:"diskio_ebs_total_write_ops"`
+	DiskioEbsTotalWriteTime                     MetricConfig `mapstructure:"diskio_ebs_total_write_time"`
+	DiskioEbsVolumePerformanceExceededIops      MetricConfig `mapstructure:"diskio_ebs_volume_performance_exceeded_iops"`
+	DiskioEbsVolumePerformanceExceededTp        MetricConfig `mapstructure:"diskio_ebs_volume_performance_exceeded_tp"`
+	DiskioEbsVolumeQueueLength                  MetricConfig `mapstructure:"diskio_ebs_volume_queue_length"`
 }
 
 func DefaultMetricsConfig() MetricsConfig {
 	return MetricsConfig{
-		TotalReadOps: MetricConfig{
+		DiskioEbsEc2InstancePerformanceExceededIops: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsEc2InstancePerformanceExceededTp: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsTotalReadBytes: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsTotalReadOps: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsTotalReadTime: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsTotalWriteBytes: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsTotalWriteOps: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsTotalWriteTime: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsVolumePerformanceExceededIops: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsVolumePerformanceExceededTp: MetricConfig{
+			Enabled: true,
+		},
+		DiskioEbsVolumeQueueLength: MetricConfig{
 			Enabled: true,
 		},
 	}
@@ -57,7 +97,7 @@ func (rac *ResourceAttributeConfig) Unmarshal(parser *confmap.Conf) error {
 
 // ResourceAttributesConfig provides config for awsebsnvmereceiver resource attributes.
 type ResourceAttributesConfig struct {
-	VolumeID ResourceAttributeConfig `mapstructure:"volume_id"`
+	VolumeID ResourceAttributeConfig `mapstructure:"VolumeId"`
 }
 
 func DefaultResourceAttributesConfig() ResourceAttributesConfig {

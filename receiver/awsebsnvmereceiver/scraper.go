@@ -50,12 +50,12 @@ func (s *nvmeScraper) shutdown(_ context.Context) error {
 
 // TODO: clean up log messages
 func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
-	now := pcommon.NewTimestampFromTime(time.Now())
-
 	ebsDevices, err := s.getEbsDevices()
 	if err != nil {
 		return pmetric.NewMetrics(), err
 	}
+
+	now := pcommon.NewTimestampFromTime(time.Now())
 
 	for _, device := range ebsDevices {
 		metrics, err := nvme.GetMetrics(device.devicePath)
@@ -63,11 +63,22 @@ func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 			s.logger.Info("unable to get metrics for device", zap.String("device", device.deviceName), zap.Error(err))
 			continue
 		}
-		s.logger.Info("emitting metrics for device", zap.String("device", device.deviceName), zap.Int("read_ops", int(metrics.ReadOps)), zap.String("volumeId", device.volumeId))
 
 		rb := s.mb.NewResourceBuilder()
-		s.mb.RecordTotalReadOpsDataPoint(now, int64(metrics.ReadOps))
 		rb.SetVolumeID(device.volumeId)
+
+		s.mb.RecordDiskioEbsTotalReadOpsDataPoint(now, int64(metrics.ReadOps))
+		s.mb.RecordDiskioEbsTotalWriteOpsDataPoint(now, int64(metrics.WriteOps))
+		s.mb.RecordDiskioEbsTotalReadBytesDataPoint(now, int64(metrics.ReadBytes))
+		s.mb.RecordDiskioEbsTotalWriteBytesDataPoint(now, int64(metrics.WriteBytes))
+		s.mb.RecordDiskioEbsTotalReadTimeDataPoint(now, int64(metrics.TotalReadTime))
+		s.mb.RecordDiskioEbsTotalWriteTimeDataPoint(now, int64(metrics.TotalWriteTime))
+		s.mb.RecordDiskioEbsVolumePerformanceExceededIopsDataPoint(now, int64(metrics.EBSIOPSExceeded))
+		s.mb.RecordDiskioEbsVolumePerformanceExceededTpDataPoint(now, int64(metrics.EBSThroughputExceeded))
+		s.mb.RecordDiskioEbsEc2InstancePerformanceExceededIopsDataPoint(now, int64(metrics.EC2IOPSExceeded))
+		s.mb.RecordDiskioEbsEc2InstancePerformanceExceededTpDataPoint(now, int64(metrics.EC2ThroughputExceeded))
+		s.mb.RecordDiskioEbsVolumeQueueLengthDataPoint(now, int64(metrics.QueueLength))
+
 		s.mb.EmitForResource(metadata.WithResource(rb.Emit()))
 	}
 

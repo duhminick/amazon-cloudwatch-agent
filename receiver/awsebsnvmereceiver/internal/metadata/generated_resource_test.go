@@ -13,7 +13,7 @@ func TestResourceBuilder(t *testing.T) {
 		t.Run(test, func(t *testing.T) {
 			cfg := loadResourceAttributesConfig(t, test)
 			rb := NewResourceBuilder(cfg)
-			rb.SetVolumeID("volume_id-val")
+			rb.SetVolumeID("VolumeId-val")
 
 			res := rb.Emit()
 			assert.Equal(t, 0, rb.Emit().Attributes().Len()) // Second call should return empty Resource
@@ -30,10 +30,10 @@ func TestResourceBuilder(t *testing.T) {
 				assert.Failf(t, "unexpected test case: %s", test)
 			}
 
-			val, ok := res.Attributes().Get("volume_id")
+			val, ok := res.Attributes().Get("VolumeId")
 			assert.True(t, ok)
 			if ok {
-				assert.EqualValues(t, "volume_id-val", val.Str())
+				assert.EqualValues(t, "VolumeId-val", val.Str())
 			}
 		})
 	}

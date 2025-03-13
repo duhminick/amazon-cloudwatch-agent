@@ -11,23 +11,23 @@ import (
 	"go.opentelemetry.io/collector/receiver"
 )
 
-type metricTotalReadOps struct {
+type metricDiskioEbsEc2InstancePerformanceExceededIops struct {
 	data     pmetric.Metric // data buffer for generated metric.
 	config   MetricConfig   // metric config provided by user.
 	capacity int            // max observed number of data points added to the metric.
 }
 
-// init fills total_read_ops metric with initial data.
-func (m *metricTotalReadOps) init() {
-	m.data.SetName("total_read_ops")
-	m.data.SetDescription("The total number of completed read operations")
-	m.data.SetUnit("1")
+// init fills diskio_ebs_ec2_instance_performance_exceeded_iops metric with initial data.
+func (m *metricDiskioEbsEc2InstancePerformanceExceededIops) init() {
+	m.data.SetName("diskio_ebs_ec2_instance_performance_exceeded_iops")
+	m.data.SetDescription("The total time, in microseconds, that the EBS volume exceeded the attached Amazon EC2 instance's maximum IOPS performance")
+	m.data.SetUnit("us")
 	m.data.SetEmptySum()
 	m.data.Sum().SetIsMonotonic(true)
 	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
 }
 
-func (m *metricTotalReadOps) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+func (m *metricDiskioEbsEc2InstancePerformanceExceededIops) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
 	if !m.config.Enabled {
 		return
 	}
@@ -38,14 +38,14 @@ func (m *metricTotalReadOps) recordDataPoint(start pcommon.Timestamp, ts pcommon
 }
 
 // updateCapacity saves max length of data point slices that will be used for the slice capacity.
-func (m *metricTotalReadOps) updateCapacity() {
+func (m *metricDiskioEbsEc2InstancePerformanceExceededIops) updateCapacity() {
 	if m.data.Sum().DataPoints().Len() > m.capacity {
 		m.capacity = m.data.Sum().DataPoints().Len()
 	}
 }
 
 // emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
-func (m *metricTotalReadOps) emit(metrics pmetric.MetricSlice) {
+func (m *metricDiskioEbsEc2InstancePerformanceExceededIops) emit(metrics pmetric.MetricSlice) {
 	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
 		m.updateCapacity()
 		m.data.MoveTo(metrics.AppendEmpty())
@@ -53,8 +53,516 @@ func (m *metricTotalReadOps) emit(metrics pmetric.MetricSlice) {
 	}
 }
 
-func newMetricTotalReadOps(cfg MetricConfig) metricTotalReadOps {
-	m := metricTotalReadOps{config: cfg}
+func newMetricDiskioEbsEc2InstancePerformanceExceededIops(cfg MetricConfig) metricDiskioEbsEc2InstancePerformanceExceededIops {
+	m := metricDiskioEbsEc2InstancePerformanceExceededIops{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsEc2InstancePerformanceExceededTp struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_ec2_instance_performance_exceeded_tp metric with initial data.
+func (m *metricDiskioEbsEc2InstancePerformanceExceededTp) init() {
+	m.data.SetName("diskio_ebs_ec2_instance_performance_exceeded_tp")
+	m.data.SetDescription("The total time, in microseconds, that the EBS volume exceeded the attached Amazon EC2 instance's maximum throughput performance")
+	m.data.SetUnit("us")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsEc2InstancePerformanceExceededTp) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsEc2InstancePerformanceExceededTp) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsEc2InstancePerformanceExceededTp) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsEc2InstancePerformanceExceededTp(cfg MetricConfig) metricDiskioEbsEc2InstancePerformanceExceededTp {
+	m := metricDiskioEbsEc2InstancePerformanceExceededTp{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsTotalReadBytes struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_total_read_bytes metric with initial data.
+func (m *metricDiskioEbsTotalReadBytes) init() {
+	m.data.SetName("diskio_ebs_total_read_bytes")
+	m.data.SetDescription("The total number of read bytes transferred")
+	m.data.SetUnit("By")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsTotalReadBytes) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsTotalReadBytes) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsTotalReadBytes) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsTotalReadBytes(cfg MetricConfig) metricDiskioEbsTotalReadBytes {
+	m := metricDiskioEbsTotalReadBytes{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsTotalReadOps struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_total_read_ops metric with initial data.
+func (m *metricDiskioEbsTotalReadOps) init() {
+	m.data.SetName("diskio_ebs_total_read_ops")
+	m.data.SetDescription("The total number of completed read operations")
+	m.data.SetUnit("1")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsTotalReadOps) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsTotalReadOps) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsTotalReadOps) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsTotalReadOps(cfg MetricConfig) metricDiskioEbsTotalReadOps {
+	m := metricDiskioEbsTotalReadOps{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsTotalReadTime struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_total_read_time metric with initial data.
+func (m *metricDiskioEbsTotalReadTime) init() {
+	m.data.SetName("diskio_ebs_total_read_time")
+	m.data.SetDescription("The total time spent, in microseconds, by all completed read operations")
+	m.data.SetUnit("us")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsTotalReadTime) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsTotalReadTime) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsTotalReadTime) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsTotalReadTime(cfg MetricConfig) metricDiskioEbsTotalReadTime {
+	m := metricDiskioEbsTotalReadTime{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsTotalWriteBytes struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_total_write_bytes metric with initial data.
+func (m *metricDiskioEbsTotalWriteBytes) init() {
+	m.data.SetName("diskio_ebs_total_write_bytes")
+	m.data.SetDescription("The total number of write bytes transferred")
+	m.data.SetUnit("By")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsTotalWriteBytes) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsTotalWriteBytes) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsTotalWriteBytes) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsTotalWriteBytes(cfg MetricConfig) metricDiskioEbsTotalWriteBytes {
+	m := metricDiskioEbsTotalWriteBytes{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsTotalWriteOps struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_total_write_ops metric with initial data.
+func (m *metricDiskioEbsTotalWriteOps) init() {
+	m.data.SetName("diskio_ebs_total_write_ops")
+	m.data.SetDescription("The total number of completed write operations")
+	m.data.SetUnit("1")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsTotalWriteOps) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsTotalWriteOps) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsTotalWriteOps) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsTotalWriteOps(cfg MetricConfig) metricDiskioEbsTotalWriteOps {
+	m := metricDiskioEbsTotalWriteOps{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsTotalWriteTime struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_total_write_time metric with initial data.
+func (m *metricDiskioEbsTotalWriteTime) init() {
+	m.data.SetName("diskio_ebs_total_write_time")
+	m.data.SetDescription("The total time spent, in microseconds, by all completed write operations")
+	m.data.SetUnit("us")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsTotalWriteTime) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsTotalWriteTime) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsTotalWriteTime) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsTotalWriteTime(cfg MetricConfig) metricDiskioEbsTotalWriteTime {
+	m := metricDiskioEbsTotalWriteTime{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsVolumePerformanceExceededIops struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_volume_performance_exceeded_iops metric with initial data.
+func (m *metricDiskioEbsVolumePerformanceExceededIops) init() {
+	m.data.SetName("diskio_ebs_volume_performance_exceeded_iops")
+	m.data.SetDescription("The total time, in microseconds, that IOPS demand exceeded the volume's provisioned IOPS performance")
+	m.data.SetUnit("us")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsVolumePerformanceExceededIops) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsVolumePerformanceExceededIops) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsVolumePerformanceExceededIops) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsVolumePerformanceExceededIops(cfg MetricConfig) metricDiskioEbsVolumePerformanceExceededIops {
+	m := metricDiskioEbsVolumePerformanceExceededIops{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsVolumePerformanceExceededTp struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_volume_performance_exceeded_tp metric with initial data.
+func (m *metricDiskioEbsVolumePerformanceExceededTp) init() {
+	m.data.SetName("diskio_ebs_volume_performance_exceeded_tp")
+	m.data.SetDescription("The total time, in microseconds, that throughput demand exceeded the volume's provisioned throughput performance")
+	m.data.SetUnit("us")
+	m.data.SetEmptySum()
+	m.data.Sum().SetIsMonotonic(true)
+	m.data.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+}
+
+func (m *metricDiskioEbsVolumePerformanceExceededTp) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Sum().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsVolumePerformanceExceededTp) updateCapacity() {
+	if m.data.Sum().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Sum().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsVolumePerformanceExceededTp) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Sum().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsVolumePerformanceExceededTp(cfg MetricConfig) metricDiskioEbsVolumePerformanceExceededTp {
+	m := metricDiskioEbsVolumePerformanceExceededTp{config: cfg}
+	if cfg.Enabled {
+		m.data = pmetric.NewMetric()
+		m.init()
+	}
+	return m
+}
+
+type metricDiskioEbsVolumeQueueLength struct {
+	data     pmetric.Metric // data buffer for generated metric.
+	config   MetricConfig   // metric config provided by user.
+	capacity int            // max observed number of data points added to the metric.
+}
+
+// init fills diskio_ebs_volume_queue_length metric with initial data.
+func (m *metricDiskioEbsVolumeQueueLength) init() {
+	m.data.SetName("diskio_ebs_volume_queue_length")
+	m.data.SetDescription("The number of read and write operations waiting to be completed")
+	m.data.SetUnit("1")
+	m.data.SetEmptyGauge()
+}
+
+func (m *metricDiskioEbsVolumeQueueLength) recordDataPoint(start pcommon.Timestamp, ts pcommon.Timestamp, val int64) {
+	if !m.config.Enabled {
+		return
+	}
+	dp := m.data.Gauge().DataPoints().AppendEmpty()
+	dp.SetStartTimestamp(start)
+	dp.SetTimestamp(ts)
+	dp.SetIntValue(val)
+}
+
+// updateCapacity saves max length of data point slices that will be used for the slice capacity.
+func (m *metricDiskioEbsVolumeQueueLength) updateCapacity() {
+	if m.data.Gauge().DataPoints().Len() > m.capacity {
+		m.capacity = m.data.Gauge().DataPoints().Len()
+	}
+}
+
+// emit appends recorded metric data to a metrics slice and prepares it for recording another set of data points.
+func (m *metricDiskioEbsVolumeQueueLength) emit(metrics pmetric.MetricSlice) {
+	if m.config.Enabled && m.data.Gauge().DataPoints().Len() > 0 {
+		m.updateCapacity()
+		m.data.MoveTo(metrics.AppendEmpty())
+		m.init()
+	}
+}
+
+func newMetricDiskioEbsVolumeQueueLength(cfg MetricConfig) metricDiskioEbsVolumeQueueLength {
+	m := metricDiskioEbsVolumeQueueLength{config: cfg}
 	if cfg.Enabled {
 		m.data = pmetric.NewMetric()
 		m.init()
@@ -65,12 +573,22 @@ func newMetricTotalReadOps(cfg MetricConfig) metricTotalReadOps {
 // MetricsBuilder provides an interface for scrapers to report metrics while taking care of all the transformations
 // required to produce metric representation defined in metadata and user config.
 type MetricsBuilder struct {
-	config             MetricsBuilderConfig // config of the metrics builder.
-	startTime          pcommon.Timestamp    // start time that will be applied to all recorded data points.
-	metricsCapacity    int                  // maximum observed number of metrics per resource.
-	metricsBuffer      pmetric.Metrics      // accumulates metrics data before emitting.
-	buildInfo          component.BuildInfo  // contains version information.
-	metricTotalReadOps metricTotalReadOps
+	config                                            MetricsBuilderConfig // config of the metrics builder.
+	startTime                                         pcommon.Timestamp    // start time that will be applied to all recorded data points.
+	metricsCapacity                                   int                  // maximum observed number of metrics per resource.
+	metricsBuffer                                     pmetric.Metrics      // accumulates metrics data before emitting.
+	buildInfo                                         component.BuildInfo  // contains version information.
+	metricDiskioEbsEc2InstancePerformanceExceededIops metricDiskioEbsEc2InstancePerformanceExceededIops
+	metricDiskioEbsEc2InstancePerformanceExceededTp   metricDiskioEbsEc2InstancePerformanceExceededTp
+	metricDiskioEbsTotalReadBytes                     metricDiskioEbsTotalReadBytes
+	metricDiskioEbsTotalReadOps                       metricDiskioEbsTotalReadOps
+	metricDiskioEbsTotalReadTime                      metricDiskioEbsTotalReadTime
+	metricDiskioEbsTotalWriteBytes                    metricDiskioEbsTotalWriteBytes
+	metricDiskioEbsTotalWriteOps                      metricDiskioEbsTotalWriteOps
+	metricDiskioEbsTotalWriteTime                     metricDiskioEbsTotalWriteTime
+	metricDiskioEbsVolumePerformanceExceededIops      metricDiskioEbsVolumePerformanceExceededIops
+	metricDiskioEbsVolumePerformanceExceededTp        metricDiskioEbsVolumePerformanceExceededTp
+	metricDiskioEbsVolumeQueueLength                  metricDiskioEbsVolumeQueueLength
 }
 
 // metricBuilderOption applies changes to default metrics builder.
@@ -85,11 +603,21 @@ func WithStartTime(startTime pcommon.Timestamp) metricBuilderOption {
 
 func NewMetricsBuilder(mbc MetricsBuilderConfig, settings receiver.Settings, options ...metricBuilderOption) *MetricsBuilder {
 	mb := &MetricsBuilder{
-		config:             mbc,
-		startTime:          pcommon.NewTimestampFromTime(time.Now()),
-		metricsBuffer:      pmetric.NewMetrics(),
-		buildInfo:          settings.BuildInfo,
-		metricTotalReadOps: newMetricTotalReadOps(mbc.Metrics.TotalReadOps),
+		config:        mbc,
+		startTime:     pcommon.NewTimestampFromTime(time.Now()),
+		metricsBuffer: pmetric.NewMetrics(),
+		buildInfo:     settings.BuildInfo,
+		metricDiskioEbsEc2InstancePerformanceExceededIops: newMetricDiskioEbsEc2InstancePerformanceExceededIops(mbc.Metrics.DiskioEbsEc2InstancePerformanceExceededIops),
+		metricDiskioEbsEc2InstancePerformanceExceededTp:   newMetricDiskioEbsEc2InstancePerformanceExceededTp(mbc.Metrics.DiskioEbsEc2InstancePerformanceExceededTp),
+		metricDiskioEbsTotalReadBytes:                     newMetricDiskioEbsTotalReadBytes(mbc.Metrics.DiskioEbsTotalReadBytes),
+		metricDiskioEbsTotalReadOps:                       newMetricDiskioEbsTotalReadOps(mbc.Metrics.DiskioEbsTotalReadOps),
+		metricDiskioEbsTotalReadTime:                      newMetricDiskioEbsTotalReadTime(mbc.Metrics.DiskioEbsTotalReadTime),
+		metricDiskioEbsTotalWriteBytes:                    newMetricDiskioEbsTotalWriteBytes(mbc.Metrics.DiskioEbsTotalWriteBytes),
+		metricDiskioEbsTotalWriteOps:                      newMetricDiskioEbsTotalWriteOps(mbc.Metrics.DiskioEbsTotalWriteOps),
+		metricDiskioEbsTotalWriteTime:                     newMetricDiskioEbsTotalWriteTime(mbc.Metrics.DiskioEbsTotalWriteTime),
+		metricDiskioEbsVolumePerformanceExceededIops:      newMetricDiskioEbsVolumePerformanceExceededIops(mbc.Metrics.DiskioEbsVolumePerformanceExceededIops),
+		metricDiskioEbsVolumePerformanceExceededTp:        newMetricDiskioEbsVolumePerformanceExceededTp(mbc.Metrics.DiskioEbsVolumePerformanceExceededTp),
+		metricDiskioEbsVolumeQueueLength:                  newMetricDiskioEbsVolumeQueueLength(mbc.Metrics.DiskioEbsVolumeQueueLength),
 	}
 	for _, op := range options {
 		op(mb)
@@ -151,7 +679,17 @@ func (mb *MetricsBuilder) EmitForResource(rmo ...ResourceMetricsOption) {
 	ils.Scope().SetName("otelcol/awsebsnvmereceiver")
 	ils.Scope().SetVersion(mb.buildInfo.Version)
 	ils.Metrics().EnsureCapacity(mb.metricsCapacity)
-	mb.metricTotalReadOps.emit(ils.Metrics())
+	mb.metricDiskioEbsEc2InstancePerformanceExceededIops.emit(ils.Metrics())
+	mb.metricDiskioEbsEc2InstancePerformanceExceededTp.emit(ils.Metrics())
+	mb.metricDiskioEbsTotalReadBytes.emit(ils.Metrics())
+	mb.metricDiskioEbsTotalReadOps.emit(ils.Metrics())
+	mb.metricDiskioEbsTotalReadTime.emit(ils.Metrics())
+	mb.metricDiskioEbsTotalWriteBytes.emit(ils.Metrics())
+	mb.metricDiskioEbsTotalWriteOps.emit(ils.Metrics())
+	mb.metricDiskioEbsTotalWriteTime.emit(ils.Metrics())
+	mb.metricDiskioEbsVolumePerformanceExceededIops.emit(ils.Metrics())
+	mb.metricDiskioEbsVolumePerformanceExceededTp.emit(ils.Metrics())
+	mb.metricDiskioEbsVolumeQueueLength.emit(ils.Metrics())
 
 	for _, op := range rmo {
 		op(rm)
@@ -172,9 +710,59 @@ func (mb *MetricsBuilder) Emit(rmo ...ResourceMetricsOption) pmetric.Metrics {
 	return metrics
 }
 
-// RecordTotalReadOpsDataPoint adds a data point to total_read_ops metric.
-func (mb *MetricsBuilder) RecordTotalReadOpsDataPoint(ts pcommon.Timestamp, val int64) {
-	mb.metricTotalReadOps.recordDataPoint(mb.startTime, ts, val)
+// RecordDiskioEbsEc2InstancePerformanceExceededIopsDataPoint adds a data point to diskio_ebs_ec2_instance_performance_exceeded_iops metric.
+func (mb *MetricsBuilder) RecordDiskioEbsEc2InstancePerformanceExceededIopsDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsEc2InstancePerformanceExceededIops.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsEc2InstancePerformanceExceededTpDataPoint adds a data point to diskio_ebs_ec2_instance_performance_exceeded_tp metric.
+func (mb *MetricsBuilder) RecordDiskioEbsEc2InstancePerformanceExceededTpDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsEc2InstancePerformanceExceededTp.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsTotalReadBytesDataPoint adds a data point to diskio_ebs_total_read_bytes metric.
+func (mb *MetricsBuilder) RecordDiskioEbsTotalReadBytesDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsTotalReadBytes.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsTotalReadOpsDataPoint adds a data point to diskio_ebs_total_read_ops metric.
+func (mb *MetricsBuilder) RecordDiskioEbsTotalReadOpsDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsTotalReadOps.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsTotalReadTimeDataPoint adds a data point to diskio_ebs_total_read_time metric.
+func (mb *MetricsBuilder) RecordDiskioEbsTotalReadTimeDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsTotalReadTime.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsTotalWriteBytesDataPoint adds a data point to diskio_ebs_total_write_bytes metric.
+func (mb *MetricsBuilder) RecordDiskioEbsTotalWriteBytesDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsTotalWriteBytes.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsTotalWriteOpsDataPoint adds a data point to diskio_ebs_total_write_ops metric.
+func (mb *MetricsBuilder) RecordDiskioEbsTotalWriteOpsDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsTotalWriteOps.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsTotalWriteTimeDataPoint adds a data point to diskio_ebs_total_write_time metric.
+func (mb *MetricsBuilder) RecordDiskioEbsTotalWriteTimeDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsTotalWriteTime.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsVolumePerformanceExceededIopsDataPoint adds a data point to diskio_ebs_volume_performance_exceeded_iops metric.
+func (mb *MetricsBuilder) RecordDiskioEbsVolumePerformanceExceededIopsDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsVolumePerformanceExceededIops.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsVolumePerformanceExceededTpDataPoint adds a data point to diskio_ebs_volume_performance_exceeded_tp metric.
+func (mb *MetricsBuilder) RecordDiskioEbsVolumePerformanceExceededTpDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsVolumePerformanceExceededTp.recordDataPoint(mb.startTime, ts, val)
+}
+
+// RecordDiskioEbsVolumeQueueLengthDataPoint adds a data point to diskio_ebs_volume_queue_length metric.
+func (mb *MetricsBuilder) RecordDiskioEbsVolumeQueueLengthDataPoint(ts pcommon.Timestamp, val int64) {
+	mb.metricDiskioEbsVolumeQueueLength.recordDataPoint(mb.startTime, ts, val)
 }
 
 // Reset resets metrics builder to its initial state. It should be used when external metrics source is restarted,
