@@ -6,42 +6,58 @@ import (
 	"strings"
 )
 
-func GetAllDevices() ([]string, error) {
+func GetAllDevices() ([]NvmeDeviceFileAttributes, error) {
 	entries, err := os.ReadDir(DevDirectoryPath)
 	if err != nil {
 		return nil, err
 	}
 
-	devices := []string{}
+	devices := []NvmeDeviceFileAttributes{}
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), NvmeDevicePrefix) {
-			devices = append(devices, entry.Name())
+			device, err := ParseNvmeDeviceFileName(entry.Name())
+			if err == nil {
+				devices = append(devices, device)
+			}
 		}
 	}
 
 	return devices, nil
 }
 
-func GetDeviceSerial(device string) (string, error) {
-	data, err := os.ReadFile(fmt.Sprintf("%s/%s/serial", NvmeSysDirectoryPath, device))
+func GetDeviceSerial(device *NvmeDeviceFileAttributes) (string, error) {
+	deviceName, err := device.BaseDeviceName()
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSuffix(string(data), "\n"), nil
-}
-
-func GetDeviceModel(device string) (string, error) {
-	data, err := os.ReadFile(fmt.Sprintf("%s/%s/model", NvmeSysDirectoryPath, device))
+	data, err := os.ReadFile(fmt.Sprintf("%s/%s/serial", NvmeSysDirectoryPath, deviceName))
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSuffix(string(data), "\n"), nil
+	return cleanupString(string(data)), nil
 }
 
-func IsEbsDevice(device string) (bool, error) {
+func GetDeviceModel(device *NvmeDeviceFileAttributes) (string, error) {
+	deviceName, err := device.BaseDeviceName()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(fmt.Sprintf("%s/%s/model", NvmeSysDirectoryPath, deviceName))
+	if err != nil {
+		return "", err
+	}
+	return cleanupString(string(data)), nil
+}
+
+func IsEbsDevice(device *NvmeDeviceFileAttributes) (bool, error) {
 	model, err := GetDeviceModel(device)
 	if err != nil {
 		return false, err
 	}
 	return model == EbsNvmeModelName, nil
+}
+
+func cleanupString(input string) string {
+	// Some device info strings use fixed-width padding and/or end with a new line
+	return strings.TrimSpace(strings.TrimSuffix(input, "\n"))
 }

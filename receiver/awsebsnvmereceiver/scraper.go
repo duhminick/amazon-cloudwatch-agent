@@ -84,41 +84,43 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 	devices := make(map[int]ebsDevice)
 
 	for _, device := range allNvmeDevices {
-		attrs, err := nvme.ParseNvmeDeviceFileName(device)
+		var deviceName string
+		if name, err := device.DeviceName(); err == nil {
+			deviceName = name
+		}
+
 		// nvme0, nvme1, ... nvme{n} are owned by root:root. Device files with
 		// namespace (e.g. nvme0n1, nvme0n2) are owned by root:disk. We skip attempting to open the former.
-		if err != nil || attrs.Namespace() == -1 {
-			s.logger.Debug("skipping invalid device", zap.String("device", device))
+		if err != nil || device.Namespace() == -1 {
+			s.logger.Debug("skipping invalid device", zap.String("device", deviceName))
 			continue
 		}
 
 		// Skip if we already have a device file we can use
-		if _, ok := devices[attrs.Controller()]; ok {
+		if _, ok := devices[device.Controller()]; ok {
 			continue
 		}
 
-		baseDeviceName := fmt.Sprintf("nvme%d", attrs.Controller())
-
-		isEbs, err := nvme.IsEbsDevice(baseDeviceName)
+		isEbs, err := nvme.IsEbsDevice(&device)
 		if err != nil || !isEbs {
-			s.logger.Debug("skipping non-ebs nvme device", zap.String("device", device), zap.Error(err))
+			s.logger.Debug("skipping non-ebs nvme device", zap.String("device", deviceName), zap.Error(err))
 			continue
 		}
 
-		serial, err := nvme.GetDeviceSerial(baseDeviceName)
+		serial, err := nvme.GetDeviceSerial(&device)
 		if err != nil {
-			s.logger.Debug("unable to get serial number of device", zap.String("device", device), zap.Error(err))
+			s.logger.Debug("unable to get serial number of device", zap.String("device", deviceName), zap.Error(err))
 			continue
 		}
 
 		if !strings.HasPrefix(serial, "vol") {
-			s.logger.Debug("device serial is not prefixed with vol", zap.String("device", device), zap.String("serial", serial))
+			s.logger.Debug("device serial is not prefixed with vol", zap.String("device", deviceName), zap.String("serial", serial))
 			continue
 		}
 
-		devices[attrs.Controller()] = ebsDevice{
-			deviceName: device,
-			devicePath: fmt.Sprintf("%s/%s", nvme.DevDirectoryPath, device),
+		devices[device.Controller()] = ebsDevice{
+			deviceName: deviceName,
+			devicePath: fmt.Sprintf("%s/%s", nvme.DevDirectoryPath, deviceName),
 			volumeId:   fmt.Sprintf("vol-%s", serial[2:]),
 		}
 	}

@@ -11,9 +11,9 @@ import (
 )
 
 type NvmeDeviceFileAttributes struct {
-	controller int
-	namespace  int
-	partition  int
+	controller   int
+	namespace    int
+	partition    int
 }
 
 type Attribute interface {
@@ -82,10 +82,6 @@ func (n *NvmeDeviceFileAttributes) BaseDeviceName() (string, error) {
 }
 
 func (n *NvmeDeviceFileAttributes) DeviceName() (string, error) {
-	if n.Controller() == -1 {
-		return "", errors.New("unable to re-create device name due to missing controller id")
-	}
-
 	hasNamespace := n.Namespace() != -1
 	hasPartition := n.Partition() != -1
 
@@ -93,9 +89,10 @@ func (n *NvmeDeviceFileAttributes) DeviceName() (string, error) {
 		return fmt.Sprintf("nvme%dn%dp%d", n.Controller(), n.Namespace(), n.Partition()), nil
 	} else if hasNamespace {
 		return fmt.Sprintf("nvme%dn%d", n.Controller(), n.Namespace()), nil
-	}
+	} 
 
-	return "", errors.New("unable to re-create device name")
+	// Fall back to BaseDeviceName if only the controller ID exists
+	return n.BaseDeviceName()
 }
 
 func newNvmeDeviceFileAttributes(attributes ...Attribute) (NvmeDeviceFileAttributes, error) {
@@ -104,15 +101,18 @@ func newNvmeDeviceFileAttributes(attributes ...Attribute) (NvmeDeviceFileAttribu
 		namespace:  -1,
 		partition:  -1,
 	}
-	var err error
+	var anyErr error
 	for _, attribute := range attributes {
-		err = attribute.apply(n)
+		err := attribute.apply(n)
+		if err != nil {
+			anyErr = err
+		}
 	}
 	// Controller should always exist and should be a non-negative number
 	if n.Controller() == -1 {
 		return *n, errors.New("unable to parse controller id of nvme device")
 	}
-	return *n, err
+	return *n, anyErr
 }
 
 func withController(controller string) Attribute {
