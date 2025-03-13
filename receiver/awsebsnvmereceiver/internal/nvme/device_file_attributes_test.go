@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT
+
 package nvme
 
 import (
@@ -48,7 +51,7 @@ func TestParseNvmeDeviceFileName(t *testing.T) {
 			wantController: -1,
 			wantNamespace:  -1,
 			wantPartition:  -1,
-			wantErr:        false,
+			wantErr:        true,
 		},
 		{
 			name:           "Partial format nvme0n",
@@ -56,7 +59,7 @@ func TestParseNvmeDeviceFileName(t *testing.T) {
 			wantController: 0,
 			wantNamespace:  -1,
 			wantPartition:  -1,
-			wantErr:        false,
+			wantErr:        true,
 		},
 		{
 			name:           "Invalid format nvme0np",
@@ -64,7 +67,7 @@ func TestParseNvmeDeviceFileName(t *testing.T) {
 			wantController: 0,
 			wantNamespace:  -1,
 			wantPartition:  -1,
-			wantErr:        false,
+			wantErr:        true,
 		},
 		{
 			name:           "Invalid format nvme0n1p",
@@ -72,7 +75,7 @@ func TestParseNvmeDeviceFileName(t *testing.T) {
 			wantController: 0,
 			wantNamespace:  1,
 			wantPartition:  -1,
-			wantErr:        false,
+			wantErr:        true,
 		},
 		{
 			name:           "Multiple digit controller",
@@ -96,7 +99,15 @@ func TestParseNvmeDeviceFileName(t *testing.T) {
 			wantController: -1,
 			wantNamespace:  1,
 			wantPartition:  2,
-			wantErr:        false,
+			wantErr:        true,
+		},
+		{
+			name:           "Wrong order",
+			device:         "nvmep1n1",
+			wantController: -1,
+			wantNamespace:  -1,
+			wantPartition:  -1,
+			wantErr:        true,
 		},
 		{
 			name:    "Empty string",
@@ -181,43 +192,54 @@ func TestSubstring(t *testing.T) {
 	}
 }
 
-func TestAtoiOrNegative(t *testing.T) {
+func TestConvertNvmeIdStringToNum(t *testing.T) {
 	tests := []struct {
-		name string
-		input string
-		want int
+		name    string
+		input   string
+		want    int
+		wantErr bool
 	}{
 		{
-			name: "Valid number",
-			input: "123",
-			want: 123,
+			name:    "Valid number",
+			input:   "123",
+			want:    123,
+			wantErr: false,
 		},
 		{
-			name: "Empty string",
-			input: "",
-			want: -1,
+			name:    "Empty string",
+			input:   "",
+			want:    -1,
+			wantErr: true,
 		},
 		{
-			name: "Invalid number",
-			input: "abc",
-			want: -1,
+			name:    "Invalid number",
+			input:   "abc",
+			want:    -1,
+			wantErr: true,
 		},
 		{
-			name: "Zero",
-			input: "0",
-			want: 0,
+			name:    "Zero",
+			input:   "0",
+			want:    0,
+			wantErr: false,
 		},
 		{
-			name: "Negative number",
-			input: "-123",
-			want: -123,
+			name:    "Negative number",
+			input:   "-123",
+			want:    -123,
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := atoiOrNegative(tt.input); got != tt.want {
-				t.Errorf("atoiOrNegative() = %v, want %v", got, tt.want)
+			got, err := convertNvmeIdStringToNum(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("convertNvmeIdStringToNum() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("convertNvmeIdStringToNum() = %v, want %v", got, tt.want)
 			}
 		})
 	}

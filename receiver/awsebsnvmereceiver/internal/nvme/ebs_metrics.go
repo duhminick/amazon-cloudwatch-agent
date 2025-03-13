@@ -1,3 +1,22 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT
+
+// The following code is based on https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/pkg/metrics/nvme.go
+
+// Copyright 2024 The Kubernetes Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the 'License');
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an 'AS IS' BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package nvme
 
 import (
@@ -77,7 +96,6 @@ func GetMetrics(devicePath string) (EBSMetrics, error) {
 	return parseLogPage(data)
 }
 
-// TODO: normalize some of these names
 // getNVMEMetrics retrieves NVMe metrics by reading the log page from the NVMe device at the given path.
 func getNVMEMetrics(devicePath string) ([]byte, error) {
 	f, err := os.OpenFile(devicePath, os.O_RDWR, 0)

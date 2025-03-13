@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT
+
 package nvme
 
 import (
@@ -17,17 +20,15 @@ type NvmeDeviceFileAttributes struct {
 }
 
 type Attribute interface {
-	apply(*NvmeDeviceFileAttributes)
+	apply(*NvmeDeviceFileAttributes) error
 }
 
-type nvmeDeviceAttributeFunc func(*NvmeDeviceFileAttributes)
+type nvmeDeviceAttributeFunc func(*NvmeDeviceFileAttributes) error
 
-func (f nvmeDeviceAttributeFunc) apply(e *NvmeDeviceFileAttributes) {
-	f(e)
+func (f nvmeDeviceAttributeFunc) apply(e *NvmeDeviceFileAttributes) error {
+	return f(e)
 }
 
-// TODO: if the format is invalid, we shouldn't silently fail
-// TODO: also this seems overly complicated. maybe simplify. evaluate just using a regex instead
 func ParseNvmeDeviceFileName(device string) (NvmeDeviceFileAttributes, error) {
 	if !strings.HasPrefix(device, nvmeDevicePrefix) {
 		return NvmeDeviceFileAttributes{
@@ -44,7 +45,7 @@ func ParseNvmeDeviceFileName(device string) (NvmeDeviceFileAttributes, error) {
 		controllerEndIdx = len(trimmed)
 		return newNvmeDeviceFileAttributes(
 			withController(substring(trimmed, 0, controllerEndIdx)),
-		), nil
+		)
 	}
 
 	namespaceEndIdx := strings.Index(trimmed, "p")
@@ -53,14 +54,14 @@ func ParseNvmeDeviceFileName(device string) (NvmeDeviceFileAttributes, error) {
 		return newNvmeDeviceFileAttributes(
 			withController(substring(trimmed, 0, controllerEndIdx)),
 			withNamespace(substring(trimmed, controllerEndIdx+1, namespaceEndIdx)),
-		), nil
+		)
 	}
 
 	return newNvmeDeviceFileAttributes(
 		withController(substring(trimmed, 0, controllerEndIdx)),
 		withNamespace(substring(trimmed, controllerEndIdx+1, namespaceEndIdx)),
 		withPartition(substring(trimmed, namespaceEndIdx+1, len(trimmed))),
-	), nil
+	)
 }
 
 func (n *NvmeDeviceFileAttributes) Controller() int {
@@ -75,40 +76,49 @@ func (n *NvmeDeviceFileAttributes) Partition() int {
 	return n.partition
 }
 
-func newNvmeDeviceFileAttributes(attributes ...Attribute) NvmeDeviceFileAttributes {
+func newNvmeDeviceFileAttributes(attributes ...Attribute) (NvmeDeviceFileAttributes, error) {
 	n := &NvmeDeviceFileAttributes{
         controller: -1,
         namespace:  -1,
         partition:  -1,
     }
+	var err error
 	for _, attribute := range attributes {
-		attribute.apply(n)
+		err = attribute.apply(n)
 	}
-	return *n
+	// Controller should always exist and should be a non-negative number
+	if n.Controller() == -1 {
+		return *n, errors.New("unable to parse controller id of nvme device")
+	}
+	return *n, err
 }
 
 func withController(controller string) Attribute {
-	c := atoiOrNegative(controller)
-	return nvmeDeviceAttributeFunc(func(attr *NvmeDeviceFileAttributes) {
+	c, err := convertNvmeIdStringToNum(controller)
+	return nvmeDeviceAttributeFunc(func(attr *NvmeDeviceFileAttributes) error {
 		attr.controller = c
+		return err
 	})
 }
 
 func withNamespace(namespace string) Attribute {
-	n := atoiOrNegative(namespace)
-	return nvmeDeviceAttributeFunc(func(attr *NvmeDeviceFileAttributes) {
+	n, err := convertNvmeIdStringToNum(namespace)
+	return nvmeDeviceAttributeFunc(func(attr *NvmeDeviceFileAttributes) error {
 		attr.namespace = n
+		return err
 	})
 }
 
 func withPartition(partition string) Attribute {
-	p := atoiOrNegative(partition)
-	return nvmeDeviceAttributeFunc(func(attr *NvmeDeviceFileAttributes) {
+	p, err := convertNvmeIdStringToNum(partition)
+	return nvmeDeviceAttributeFunc(func(attr *NvmeDeviceFileAttributes) error {
 		attr.partition = p
+		return err
 	})
 }
 
-// TODO: evaluate if this is really needed with the new parsing logic
+// substring returns the slice of a string, or an empty string if the bounds
+// are invaild
 func substring(s string, l, r int) string {
 	if l < 0 {
 		return ""
@@ -123,11 +133,13 @@ func substring(s string, l, r int) string {
 	return s[l:r]
 }
 
-// TODO: return error?
-func atoiOrNegative(a string) int {
+func convertNvmeIdStringToNum(a string) (int, error) {
+	if a == "" {
+		return -1, errors.New("nvme device attribute is empty")
+	}
 	i, err := strconv.Atoi(a)
 	if err != nil {
-		return -1
+		return -1, err
 	}
-	return i
+	return i, nil
 }
