@@ -5,12 +5,9 @@ package nvme
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
-)
-
-const (
-	nvmeDevicePrefix = "nvme"
 )
 
 type NvmeDeviceFileAttributes struct {
@@ -30,7 +27,7 @@ func (f nvmeDeviceAttributeFunc) apply(e *NvmeDeviceFileAttributes) error {
 }
 
 func ParseNvmeDeviceFileName(device string) (NvmeDeviceFileAttributes, error) {
-	if !strings.HasPrefix(device, nvmeDevicePrefix) {
+	if !strings.HasPrefix(device, NvmeDevicePrefix) {
 		return NvmeDeviceFileAttributes{
 			controller: -1,
 			namespace:  -1,
@@ -38,7 +35,7 @@ func ParseNvmeDeviceFileName(device string) (NvmeDeviceFileAttributes, error) {
 		}, errors.New("device is not prefixed with nvme")
 	}
 
-	trimmed := strings.TrimPrefix(device, nvmeDevicePrefix)
+	trimmed := strings.TrimPrefix(device, NvmeDevicePrefix)
 
 	controllerEndIdx := strings.Index(trimmed, "n")
 	if controllerEndIdx == -1 {
@@ -76,12 +73,37 @@ func (n *NvmeDeviceFileAttributes) Partition() int {
 	return n.partition
 }
 
+func (n *NvmeDeviceFileAttributes) BaseDeviceName() (string, error) {
+	if n.Controller() == -1 {
+		return "", errors.New("unable to re-create device name due to missing controller id")
+	}
+
+	return fmt.Sprintf("nvme%d", n.Controller()), nil
+}
+
+func (n *NvmeDeviceFileAttributes) DeviceName() (string, error) {
+	if n.Controller() == -1 {
+		return "", errors.New("unable to re-create device name due to missing controller id")
+	}
+
+	hasNamespace := n.Namespace() != -1
+	hasPartition := n.Partition() != -1
+
+	if hasNamespace && hasPartition {
+		return fmt.Sprintf("nvme%dn%dp%d", n.Controller(), n.Namespace(), n.Partition()), nil
+	} else if hasNamespace {
+		return fmt.Sprintf("nvme%dn%d", n.Controller(), n.Namespace()), nil
+	}
+
+	return "", errors.New("unable to re-create device name")
+}
+
 func newNvmeDeviceFileAttributes(attributes ...Attribute) (NvmeDeviceFileAttributes, error) {
 	n := &NvmeDeviceFileAttributes{
-        controller: -1,
-        namespace:  -1,
-        partition:  -1,
-    }
+		controller: -1,
+		namespace:  -1,
+		partition:  -1,
+	}
 	var err error
 	for _, attribute := range attributes {
 		err = attribute.apply(n)

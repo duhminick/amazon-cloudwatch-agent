@@ -6,7 +6,6 @@ package awsebsnvmereceiver
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -19,25 +18,17 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	nvmeDevicePrefix     = "nvme"
-	devDirectoryPath     = "/dev"
-	nvmeSysDirectoryPath = "/sys/class/nvme"
-)
-
 type nvmeScraper struct {
 	logger *zap.Logger
 	mb     *metadata.MetricsBuilder
 }
 
-// TODO: move this into internal/nvme probably
 type ebsDevice struct {
 	deviceName string
 	devicePath string
 	volumeId   string
 }
 
-// TODO: probably do not need start & shutdown logic
 func (s *nvmeScraper) start(_ context.Context, _ component.Host) error {
 	s.logger.Debug("Starting NVMe scraper", zap.String("receiver", metadata.Type.String()))
 	return nil
@@ -48,7 +39,6 @@ func (s *nvmeScraper) shutdown(_ context.Context) error {
 	return nil
 }
 
-// TODO: clean up log messages
 func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 	ebsDevices, err := s.getEbsDevices()
 	if err != nil {
@@ -86,7 +76,7 @@ func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 }
 
 func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
-	allNvmeDevices, err := getNvmeDevices()
+	allNvmeDevices, err := nvme.GetAllDevices()
 	if err != nil {
 		return nil, err
 	}
@@ -94,92 +84,47 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 	devices := make(map[int]ebsDevice)
 
 	for _, device := range allNvmeDevices {
-		attr, err := nvme.ParseNvmeDeviceFileName(device)
-		if err != nil || attr.Controller() == -1 || attr.Namespace() == -1 {
+		attrs, err := nvme.ParseNvmeDeviceFileName(device)
+		// nvme0, nvme1, ... nvme{n} are owned by root:root. Device files with
+		// namespace (e.g. nvme0n1, nvme0n2) are owned by root:disk. We skip attempting to open the former.
+		if err != nil || attrs.Namespace() == -1 {
 			s.logger.Debug("skipping invalid device", zap.String("device", device))
 			continue
 		}
 
-		// Skip if we already have a device we can use
-		if _, ok := devices[attr.Controller()]; ok {
+		// Skip if we already have a device file we can use
+		if _, ok := devices[attrs.Controller()]; ok {
 			continue
 		}
 
-		// TODO: we can probably add a check for the model too
+		baseDeviceName := fmt.Sprintf("nvme%d", attrs.Controller())
 
-		serial, err := getNvmeDeviceSerial(fmt.Sprintf("nvme%d", attr.Controller()))
+		isEbs, err := nvme.IsEbsDevice(baseDeviceName)
+		if err != nil || !isEbs {
+			s.logger.Debug("skipping non-ebs nvme device", zap.String("device", device), zap.Error(err))
+			continue
+		}
+
+		serial, err := nvme.GetDeviceSerial(baseDeviceName)
 		if err != nil {
-			s.logger.Debug("unable to get serial number of device", zap.String("device", device))
+			s.logger.Debug("unable to get serial number of device", zap.String("device", device), zap.Error(err))
 			continue
 		}
 
-		if serial[:3] != "vol" {
-			s.logger.Debug("device is not prefixed with vol", zap.String("device", device))
+		if !strings.HasPrefix(serial, "vol") {
+			s.logger.Debug("device serial is not prefixed with vol", zap.String("device", device), zap.String("serial", serial))
 			continue
 		}
 
-		devices[attr.Controller()] = ebsDevice{
+		devices[attrs.Controller()] = ebsDevice{
 			deviceName: device,
-			devicePath: fmt.Sprintf("/dev/%s", device),
+			devicePath: fmt.Sprintf("%s/%s", nvme.DevDirectoryPath, device),
 			volumeId:   fmt.Sprintf("vol-%s", serial[2:]),
 		}
 	}
 
 	return devices, nil
 }
-
-// TODO: move to internal/nvme/
-func getNvmeDevices() ([]string, error) {
-	entries, err := os.ReadDir(devDirectoryPath)
-	if err != nil {
-		return nil, err
-	}
-
-	devices := []string{}
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), nvmeDevicePrefix) {
-			devices = append(devices, entry.Name())
-		}
-	}
-
-	return devices, nil
-}
-
-// TODO: move to internal/nvme/
-func getNvmeDeviceSerial(device string) (string, error) {
-	data, err := os.ReadFile(fmt.Sprintf("/sys/class/nvme/%s/serial", device))
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSuffix(string(data), "\n"), nil
-}
-
-// Use mountinfo to get NVMe devices
-// func getNvmeDevices() ([]string, error) {
-// 	devices := []string{}
-//
-// 	infos, err := mountinfo.GetMounts(sourceFilter(nvmeDevicePrefix))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	for _, info := range infos {
-// 		devices = append(devices, info.Source)
-// 	}
-//
-// 	return devices, nil
-// }
-// func sourceFilter(prefix string) mountinfo.FilterFunc {
-// 	return func(m *mountinfo.Info) (bool, bool) {
-// 		skip := !strings.HasPrefix(m.Source, prefix)
-// 		return skip, false
-// 	}
-// }
-
-// Another option is to read `/sys/class/nvme/nvme{id}`. Inside has a serial file
-// which will have the volume ID
-// func getNvmeDevices() ([]string, error) {
-// }
 
 func newScraper(cfg *Config, settings receiver.Settings) *nvmeScraper {
 	return &nvmeScraper{
