@@ -62,6 +62,8 @@ func NewTranslators(conf *confmap.Conf, configSection, os string) (common.Transl
 		))
 	}
 
+	// Gather EBS receiver
+
 	hasHostPipeline := hostReceivers.Len() != 0
 	hasHostCustomPipeline := hostCustomReceivers.Len() != 0
 	hasDeltaPipeline := deltaReceivers.Len() != 0

@@ -27,7 +27,6 @@ import (
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/pipeline/applicationsignals"
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/pipeline/containerinsights"
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/pipeline/containerinsightsjmx"
-	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/pipeline/ebs"
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/pipeline/emf_logs"
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/pipeline/host"
 	"github.com/aws/amazon-cloudwatch-agent/translator/translate/otel/pipeline/jmx"
@@ -69,11 +68,6 @@ func Translate(jsonConfig interface{}, os string) (*otelcol.Config, error) {
 	}
 	translators.Merge(logsHostTranslators)
 	
-	// Add EBS pipeline if metrics section exists
-	if conf.IsSet(common.ConfigKey(common.MetricsKey, common.MetricsCollectedKey)) {
-		translators.Set(ebs.NewTranslator())
-	}
-	
 	containerInsightsTranslators := containerinsights.NewTranslators(conf)
 	translators.Merge(containerInsightsTranslators)
 	translators.Set(applicationsignals.NewTranslator(pipeline.SignalTraces))
@@ -84,7 +78,7 @@ func Translate(jsonConfig interface{}, os string) (*otelcol.Config, error) {
 	translators.Set(containerinsightsjmx.NewTranslator())
 	translators.Merge(jmx.NewTranslators(conf))
 	translators.Merge(registry)
-	translators.Set(ebs.NewTranslator())
+	// translators.Set(ebs.NewTranslator())
 	pipelines, err := pipelinetranslator.NewTranslator(translators).Translate(conf)
 	if err != nil {
 		translators.Set(nop.NewTranslator())
