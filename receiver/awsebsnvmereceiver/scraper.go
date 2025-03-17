@@ -21,6 +21,7 @@ import (
 type nvmeScraper struct {
 	logger *zap.Logger
 	mb     *metadata.MetricsBuilder
+	nvme   nvme.NvmeUtilInterface
 }
 
 type ebsDevice struct {
@@ -76,7 +77,7 @@ func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 }
 
 func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
-	allNvmeDevices, err := nvme.GetAllDevices()
+	allNvmeDevices, err := s.nvme.GetAllDevices()
 	if err != nil {
 		return nil, err
 	}
@@ -101,13 +102,13 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 			continue
 		}
 
-		isEbs, err := nvme.IsEbsDevice(&device)
+		isEbs, err := s.nvme.IsEbsDevice(&device)
 		if err != nil || !isEbs {
 			s.logger.Debug("skipping non-ebs nvme device", zap.String("device", deviceName), zap.Error(err))
 			continue
 		}
 
-		serial, err := nvme.GetDeviceSerial(&device)
+		serial, err := s.nvme.GetDeviceSerial(&device)
 		if err != nil {
 			s.logger.Debug("unable to get serial number of device", zap.String("device", deviceName), zap.Error(err))
 			continue
@@ -128,9 +129,10 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 	return devices, nil
 }
 
-func newScraper(cfg *Config, settings receiver.Settings) *nvmeScraper {
+func newScraper(cfg *Config, settings receiver.Settings, nvme *nvme.NvmeUtil) *nvmeScraper {
 	return &nvmeScraper{
 		logger: settings.TelemetrySettings.Logger,
 		mb:     metadata.NewMetricsBuilder(cfg.MetricsBuilderConfig, settings),
+		nvme:   nvme,
 	}
 }
