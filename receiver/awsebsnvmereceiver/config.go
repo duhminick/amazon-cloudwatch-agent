@@ -15,8 +15,3 @@ type Config struct {
 }
 
 var _ component.Config = (*Config)(nil)
-
-// TODO: validate the config...
-func (c *Config) Validate() error {
-	return nil
-}
