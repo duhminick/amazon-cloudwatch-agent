@@ -116,22 +116,23 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 			continue
 		}
 
-		if !strings.HasPrefix(serial, "vol") {
-			s.logger.Debug("device serial is not prefixed with vol", zap.String("device", deviceName), zap.String("serial", serial))
+		// The serial should begin with vol and have content after the vol prefix
+		if !strings.HasPrefix(serial, "vol") || len(serial) < 4 {
+			s.logger.Debug("device serial is not a valid volume id", zap.String("device", deviceName), zap.String("serial", serial))
 			continue
 		}
 
 		devices[device.Controller()] = ebsDevice{
 			deviceName: deviceName,
 			devicePath: fmt.Sprintf("%s/%s", nvme.DevDirectoryPath, deviceName),
-			volumeId:   fmt.Sprintf("vol-%s", serial[2:]),
+			volumeId:   fmt.Sprintf("vol-%s", serial[3:]),
 		}
 	}
 
 	return devices, nil
 }
 
-func newScraper(cfg *Config, settings receiver.Settings, nvme *nvme.NvmeUtil) *nvmeScraper {
+func newScraper(cfg *Config, settings receiver.Settings, nvme nvme.NvmeUtilInterface) *nvmeScraper {
 	return &nvmeScraper{
 		logger: settings.TelemetrySettings.Logger,
 		mb:     metadata.NewMetricsBuilder(cfg.MetricsBuilderConfig, settings),
