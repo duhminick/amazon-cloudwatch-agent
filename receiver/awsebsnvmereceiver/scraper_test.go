@@ -114,11 +114,8 @@ func TestScraper_Scrape_GetAllDevicesError(t *testing.T) {
 }
 
 func TestScraper_Scrape_Success(t *testing.T) {
-	// Save original function and restore after test
 	originalGetMetrics := getMetrics
 	defer func() { getMetrics = originalGetMetrics }()
-
-	// Set mock function
 	getMetrics = mockGetMetrics
 
 	// Create device attributes
@@ -146,17 +143,17 @@ func TestScraper_Scrape_Success(t *testing.T) {
 	assert.Equal(t, 11, ilm.Len()) // We expect 11 metrics based on the scraper implementation
 
 	// Verify specific metrics
-	verifyMetric(t, ilm, "diskio_ebs_total_read_ops", 100)
-	verifyMetric(t, ilm, "diskio_ebs_total_write_ops", 200)
-	verifyMetric(t, ilm, "diskio_ebs_total_read_bytes", 1024)
-	verifyMetric(t, ilm, "diskio_ebs_total_write_bytes", 2048)
-	verifyMetric(t, ilm, "diskio_ebs_total_read_time", 500)
-	verifyMetric(t, ilm, "diskio_ebs_total_write_time", 600)
-	verifyMetric(t, ilm, "diskio_ebs_volume_performance_exceeded_iops", 1)
-	verifyMetric(t, ilm, "diskio_ebs_volume_performance_exceeded_tp", 2)
-	verifyMetric(t, ilm, "diskio_ebs_ec2_instance_performance_exceeded_iops", 3)
-	verifyMetric(t, ilm, "diskio_ebs_ec2_instance_performance_exceeded_tp", 4)
-	verifyMetric(t, ilm, "diskio_ebs_volume_queue_length", 5)
+	verifySumMetric(t, ilm, "diskio_ebs_total_read_ops", 100)
+	verifySumMetric(t, ilm, "diskio_ebs_total_write_ops", 200)
+	verifySumMetric(t, ilm, "diskio_ebs_total_read_bytes", 1024)
+	verifySumMetric(t, ilm, "diskio_ebs_total_write_bytes", 2048)
+	verifySumMetric(t, ilm, "diskio_ebs_total_read_time", 500)
+	verifySumMetric(t, ilm, "diskio_ebs_total_write_time", 600)
+	verifySumMetric(t, ilm, "diskio_ebs_volume_performance_exceeded_iops", 1)
+	verifySumMetric(t, ilm, "diskio_ebs_volume_performance_exceeded_tp", 2)
+	verifySumMetric(t, ilm, "diskio_ebs_ec2_instance_performance_exceeded_iops", 3)
+	verifySumMetric(t, ilm, "diskio_ebs_ec2_instance_performance_exceeded_tp", 4)
+	verifyGaugeMetric(t, ilm, "diskio_ebs_volume_queue_length", 5)
 
 	mockUtil.AssertExpectations(t)
 }
@@ -232,11 +229,8 @@ func TestScraper_Scrape_InvalidSerialPrefix(t *testing.T) {
 }
 
 func TestScraper_Scrape_GetMetricsError(t *testing.T) {
-	// Save original function and restore after test
 	originalGetMetrics := getMetrics
 	defer func() { getMetrics = originalGetMetrics }()
-
-	// Set mock function that always returns error
 	getMetrics = mockGetMetricsError
 
 	device1, err := nvme.ParseNvmeDeviceFileName("nvme0n1")
@@ -268,11 +262,8 @@ func TestScraper_Scrape_GetMetricsError(t *testing.T) {
 }
 
 func TestScraper_Scrape_MultipleDevices(t *testing.T) {
-	// Save original function and restore after test
 	originalGetMetrics := getMetrics
 	defer func() { getMetrics = originalGetMetrics }()
-
-	// Set mock function
 	getMetrics = mockGetMetrics
 
 	// Create device attributes
@@ -300,12 +291,22 @@ func TestScraper_Scrape_MultipleDevices(t *testing.T) {
 	mockUtil.AssertExpectations(t)
 }
 
-// Helper function to verify metric values
-func verifyMetric(t *testing.T, metrics pmetric.MetricSlice, name string, expectedValue int64) {
+func verifySumMetric(t *testing.T, metrics pmetric.MetricSlice, name string, expectedValue int64) {
 	for i := 0; i < metrics.Len(); i++ {
 		metric := metrics.At(i)
 		if metric.Name() == name {
 			assert.Equal(t, expectedValue, metric.Sum().DataPoints().At(0).IntValue())
+			return
+		}
+	}
+	t.Errorf("Metric %s not found", name)
+}
+
+func verifyGaugeMetric(t *testing.T, metrics pmetric.MetricSlice, name string, expectedValue int64) {
+	for i := 0; i < metrics.Len(); i++ {
+		metric := metrics.At(i)
+		if metric.Name() == name {
+			assert.Equal(t, expectedValue, metric.Gauge().DataPoints().At(0).IntValue())
 			return
 		}
 	}
