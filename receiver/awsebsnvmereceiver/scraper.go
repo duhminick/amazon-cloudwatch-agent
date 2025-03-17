@@ -30,6 +30,8 @@ type ebsDevice struct {
 	volumeId   string
 }
 
+var getMetrics = nvme.GetMetrics
+
 func (s *nvmeScraper) start(_ context.Context, _ component.Host) error {
 	s.logger.Debug("Starting NVMe scraper", zap.String("receiver", metadata.Type.String()))
 	return nil
@@ -49,7 +51,7 @@ func (s *nvmeScraper) scrape(ctx context.Context) (pmetric.Metrics, error) {
 	now := pcommon.NewTimestampFromTime(time.Now())
 
 	for _, device := range ebsDevices {
-		metrics, err := nvme.GetMetrics(device.devicePath)
+		metrics, err := getMetrics(device.devicePath)
 		if err != nil {
 			s.logger.Info("unable to get metrics for device", zap.String("device", device.deviceName), zap.Error(err))
 			continue
@@ -92,7 +94,7 @@ func (s *nvmeScraper) getEbsDevices() (map[int]ebsDevice, error) {
 
 		// nvme0, nvme1, ... nvme{n} are owned by root:root. Device files with
 		// namespace (e.g. nvme0n1, nvme0n2) are owned by root:disk. We skip attempting to open the former.
-		if err != nil || device.Namespace() == -1 {
+		if device.Namespace() == -1 {
 			s.logger.Debug("skipping invalid device", zap.String("device", deviceName))
 			continue
 		}
