@@ -142,6 +142,7 @@ const (
 	TypeNodeNet        = "NodeNet"
 	TypeInstanceDiskIO = "InstanceDiskIO"
 	TypeNodeDiskIO     = "NodeDiskIO"
+	TypeNodeNVME       = "NodeNVME"
 	TypeGpuContainer   = "ContainerGPU"
 	TypeGpuPod         = "PodGPU"
 	TypeGpuNode        = "NodeGPU"

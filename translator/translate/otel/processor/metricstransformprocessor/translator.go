@@ -109,6 +109,11 @@ func (t *translator) Translate(conf *confmap.Conf) (component.Config, error) {
 					"include":  oldNvmeMetric,
 					"action":   "update",
 					"new_name": newNvmeMetric,
+					"operations": []map[string]interface{}{{
+						"action": "add_label",
+						"new_label": containerinsightscommon.MetricType,
+						"new_value": containerinsightscommon.TypeNodeNVME,
+					}},
 				})
 			}
 
