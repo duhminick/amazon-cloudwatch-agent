@@ -13,13 +13,16 @@ import (
 type ResponseCode int
 
 const (
-	ReplenishRate = 1
-	MaxTPS = 10
+	ServerReplenishRate = 1
+	ServerMaxTPS        = 50
 
-	TotalInstances = 5
-	TotalOperations = 10
+	ClientReplenishRate = 1
+	ClientMaxTPS        = 5
 
-	SUCCESS	ResponseCode = 0
+	TotalInstances  = 5
+	TotalOperations = 100
+
+	SUCCESS   ResponseCode = 0
 	THROTTLED ResponseCode = 1
 )
 
@@ -27,28 +30,29 @@ type testScaffolding struct {
 	// Throttling is generally by account ID so have a global limiter
 	serviceLimiter *rate.Limiter
 
-	attempted chan bool
-	succeeded chan bool
-	clientThrottled chan bool
+	attempted        chan bool
+	succeeded        chan bool
+	clientThrottled  chan bool
 	serviceThrottled chan bool
-	timeSpent chan time.Duration
+	timeSpent        chan time.Duration
 }
 
-func TestServiceThrottling(t *testing.T) {
-	s := testScaffolding {
-		serviceLimiter: rate.NewLimiter(ReplenishRate, MaxTPS),
-		attempted: make(chan bool, TotalInstances * TotalOperations * numBackoffRetries),
-		succeeded: make(chan bool, TotalInstances * TotalOperations),
-		clientThrottled: make(chan bool, TotalInstances * TotalOperations * numBackoffRetries),
-		serviceThrottled: make(chan bool, TotalInstances * TotalOperations * numBackoffRetries),
-		timeSpent: make(chan time.Duration, TotalInstances * TotalOperations),
+func TestServiceThrottlingNoClient(t *testing.T) {
+	s := testScaffolding{
+		serviceLimiter:   rate.NewLimiter(ServerReplenishRate, ServerMaxTPS),
+		attempted:        make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
+		succeeded:        make(chan bool, TotalInstances*TotalOperations),
+		clientThrottled:  make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
+		serviceThrottled: make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
+		timeSpent:        make(chan time.Duration, TotalInstances*TotalOperations),
 	}
 	var wg sync.WaitGroup
 	for i := 0; i < TotalInstances; i++ {
 		wg.Add(1)
 		go func() {
-			startTime := time.Now()
 			defer wg.Done()
+			startTime := time.Now()
+
 			for j := 0; j < TotalOperations; j++ {
 				succeeded := false
 				for attempt := 0; attempt < numBackoffRetries; attempt++ {
@@ -83,7 +87,73 @@ func TestServiceThrottling(t *testing.T) {
 
 	successful := boolChannelSum(s.succeeded)
 	fmt.Printf("successful operations: %d\n", successful)
-	fmt.Printf("failed operations: %d\n", (TotalInstances * TotalOperations) - successful)
+	fmt.Printf("failed operations: %d\n", (TotalInstances*TotalOperations)-successful)
+
+	fmt.Printf("total time spent: %v\n", durationChannelSum(s.timeSpent))
+}
+
+func TestServiceClientThrottling(t *testing.T) {
+	s := testScaffolding{
+		serviceLimiter:   rate.NewLimiter(ServerReplenishRate, ServerMaxTPS),
+		attempted:        make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
+		succeeded:        make(chan bool, TotalInstances*TotalOperations),
+		clientThrottled:  make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
+		serviceThrottled: make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
+		timeSpent:        make(chan time.Duration, TotalInstances*TotalOperations),
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < TotalInstances; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			startTime := time.Now()
+
+			clientLimiter := rate.NewLimiter(ClientReplenishRate, ClientMaxTPS)
+
+			for j := 0; j < TotalOperations; j++ {
+				succeeded := false
+				for attempt := 0; attempt < numBackoffRetries; attempt++ {
+					var resp ResponseCode
+					if clientLimiter.Allow() {
+						// API calls are not instant so bake in some round trip time
+						time.Sleep(randomRoundTripDuration())
+						resp = s.runServiceOperation()
+						s.attempted <- true
+					} else {
+						s.clientThrottled <- true
+						delay := calculateDelay(attempt)
+						fmt.Printf("client: delaying for %v on attempt %d\n", delay, attempt)
+						time.Sleep(delay)
+						continue
+					}
+
+					if resp == THROTTLED {
+						s.serviceThrottled <- true
+						delay := calculateDelay(attempt)
+						fmt.Printf("server: delaying for %v on attempt %d\n", delay, attempt)
+						time.Sleep(delay)
+						continue
+					}
+
+					succeeded = true
+					fmt.Printf("succeeded operation\n")
+					break
+				}
+				s.succeeded <- succeeded
+				s.timeSpent <- time.Now().Sub(startTime)
+			}
+		}()
+	}
+	wg.Wait()
+
+	attempted := boolChannelSum(s.attempted)
+	fmt.Printf("attempted calls: %d\n", attempted)
+	fmt.Printf("service throttled calls: %d\n", boolChannelSum(s.serviceThrottled))
+	fmt.Printf("client throttled calls: %d\n", boolChannelSum(s.clientThrottled))
+
+	successful := boolChannelSum(s.succeeded)
+	fmt.Printf("successful operations: %d\n", successful)
+	fmt.Printf("failed operations: %d\n", (TotalInstances*TotalOperations)-successful)
 
 	fmt.Printf("total time spent: %v\n", durationChannelSum(s.timeSpent))
 }
