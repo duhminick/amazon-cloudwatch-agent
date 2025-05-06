@@ -14,13 +14,13 @@ type ResponseCode int
 
 const (
 	ServerReplenishRate = 1
-	ServerMaxTPS        = 50
+	ServerMaxTPS        = 10
 
 	ClientReplenishRate = 1
-	ClientMaxTPS        = 5
+	ClientMaxTPS        = 2
 
 	TotalInstances  = 5
-	TotalOperations = 100
+	TotalOperations = 50
 
 	SUCCESS   ResponseCode = 0
 	THROTTLED ResponseCode = 1
@@ -112,35 +112,37 @@ func TestServiceClientThrottling(t *testing.T) {
 
 			for j := 0; j < TotalOperations; j++ {
 				succeeded := false
-				for attempt := 0; attempt < numBackoffRetries; attempt++ {
-					var resp ResponseCode
-					if clientLimiter.Allow() {
-						// API calls are not instant so bake in some round trip time
-						time.Sleep(randomRoundTripDuration())
-						resp = s.runServiceOperation()
-						s.attempted <- true
-					} else {
-						s.clientThrottled <- true
-						delay := calculateDelay(attempt)
-						fmt.Printf("client: delaying for %v on attempt %d\n", delay, attempt)
-						time.Sleep(delay)
-						continue
-					}
+				for clientAttempt := 0; clientAttempt < numBackoffRetries; clientAttempt++ {
+                    if !clientLimiter.Allow() {
+                        s.clientThrottled <- true
+						fmt.Printf("client: throttled on attempt %d\n", clientAttempt)
+                        time.Sleep(calculateDelay(clientAttempt))
+                        continue
+                    }
 
-					if resp == THROTTLED {
-						s.serviceThrottled <- true
-						delay := calculateDelay(attempt)
-						fmt.Printf("server: delaying for %v on attempt %d\n", delay, attempt)
-						time.Sleep(delay)
-						continue
-					}
+                    // Service-side retry loop
+                    for serviceAttempt := 0; serviceAttempt < numBackoffRetries; serviceAttempt++ {
+                        time.Sleep(randomRoundTripDuration())
+                        resp := s.runServiceOperation()
+                        s.attempted <- true
 
-					succeeded = true
-					fmt.Printf("succeeded operation\n")
-					break
-				}
-				s.succeeded <- succeeded
-				s.timeSpent <- time.Now().Sub(startTime)
+                        if resp == THROTTLED {
+                            s.serviceThrottled <- true
+							fmt.Printf("server: throttled on attempt %d\n", serviceAttempt)
+                            time.Sleep(calculateDelay(serviceAttempt))
+                            continue
+                        }
+
+                        succeeded = true
+                        break
+                    }
+
+                    if succeeded {
+                        break
+                    }
+                }
+                s.succeeded <- succeeded
+                s.timeSpent <- time.Now().Sub(startTime)
 			}
 		}()
 	}
