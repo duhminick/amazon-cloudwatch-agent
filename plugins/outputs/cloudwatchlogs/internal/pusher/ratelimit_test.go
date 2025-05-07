@@ -13,11 +13,11 @@ import (
 type ResponseCode int
 
 const (
-	ServerReplenishRate = 1
-	ServerMaxTPS        = 10
+	ServerReplenishRate = 10
+	ServerBurstRate     = 10
 
-	ClientReplenishRate = 1
-	ClientMaxTPS        = 2
+	ClientReplenishRate = 2
+	ClientBurstRate     = 2
 
 	TotalInstances  = 5
 	TotalOperations = 50
@@ -39,7 +39,7 @@ type testScaffolding struct {
 
 func TestServiceThrottlingNoClient(t *testing.T) {
 	s := testScaffolding{
-		serviceLimiter:   rate.NewLimiter(ServerReplenishRate, ServerMaxTPS),
+		serviceLimiter:   rate.NewLimiter(ServerReplenishRate, ServerBurstRate),
 		attempted:        make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
 		succeeded:        make(chan bool, TotalInstances*TotalOperations),
 		clientThrottled:  make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
@@ -94,7 +94,7 @@ func TestServiceThrottlingNoClient(t *testing.T) {
 
 func TestServiceClientThrottling(t *testing.T) {
 	s := testScaffolding{
-		serviceLimiter:   rate.NewLimiter(ServerReplenishRate, ServerMaxTPS),
+		serviceLimiter:   rate.NewLimiter(ServerReplenishRate, ServerBurstRate),
 		attempted:        make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
 		succeeded:        make(chan bool, TotalInstances*TotalOperations),
 		clientThrottled:  make(chan bool, TotalInstances*TotalOperations*numBackoffRetries),
@@ -108,41 +108,41 @@ func TestServiceClientThrottling(t *testing.T) {
 			defer wg.Done()
 			startTime := time.Now()
 
-			clientLimiter := rate.NewLimiter(ClientReplenishRate, ClientMaxTPS)
+			clientLimiter := rate.NewLimiter(ClientReplenishRate, ClientBurstRate)
 
 			for j := 0; j < TotalOperations; j++ {
 				succeeded := false
 				for clientAttempt := 0; clientAttempt < numBackoffRetries; clientAttempt++ {
-                    if !clientLimiter.Allow() {
-                        s.clientThrottled <- true
+					if !clientLimiter.Allow() {
+						s.clientThrottled <- true
 						fmt.Printf("client: throttled on attempt %d\n", clientAttempt)
-                        time.Sleep(calculateDelay(clientAttempt))
-                        continue
-                    }
+						time.Sleep(calculateDelay(clientAttempt))
+						continue
+					}
 
-                    // Service-side retry loop
-                    for serviceAttempt := 0; serviceAttempt < numBackoffRetries; serviceAttempt++ {
-                        time.Sleep(randomRoundTripDuration())
-                        resp := s.runServiceOperation()
-                        s.attempted <- true
+					// Service-side retry loop
+					for serviceAttempt := 0; serviceAttempt < numBackoffRetries; serviceAttempt++ {
+						time.Sleep(randomRoundTripDuration())
+						resp := s.runServiceOperation()
+						s.attempted <- true
 
-                        if resp == THROTTLED {
-                            s.serviceThrottled <- true
+						if resp == THROTTLED {
+							s.serviceThrottled <- true
 							fmt.Printf("server: throttled on attempt %d\n", serviceAttempt)
-                            time.Sleep(calculateDelay(serviceAttempt))
-                            continue
-                        }
+							time.Sleep(calculateDelay(serviceAttempt))
+							continue
+						}
 
-                        succeeded = true
-                        break
-                    }
+						succeeded = true
+						break
+					}
 
-                    if succeeded {
-                        break
-                    }
-                }
-                s.succeeded <- succeeded
-                s.timeSpent <- time.Now().Sub(startTime)
+					if succeeded {
+						break
+					}
+				}
+				s.succeeded <- succeeded
+				s.timeSpent <- time.Now().Sub(startTime)
 			}
 		}()
 	}
