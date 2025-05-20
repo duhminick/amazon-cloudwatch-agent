@@ -98,6 +98,9 @@ func (c *CloudWatchLogs) Close() error {
 	if c.workerPool != nil {
 		c.workerPool.Stop()
 	}
+	if c.targetManager != nil {
+		c.targetManager.Stop()
+	}
 
 	return nil
 }
@@ -145,7 +148,7 @@ func (c *CloudWatchLogs) getDest(t pusher.Target, logSrc logs.LogSrc) *cwDest {
 		if c.Concurrency > 0 {
 			c.workerPool = pusher.NewWorkerPool(c.Concurrency)
 		}
-		c.targetManager = pusher.NewTargetManager(c.Log, client)
+		c.targetManager = pusher.NewTargetManager(c.Log, client, c.FileStateFolder)
 	})
 	p := pusher.NewPusher(c.Log, t, client, c.targetManager, logSrc, c.workerPool, c.ForceFlushInterval.Duration, maxRetryTimeout, c.pusherStopChan, &c.pusherWaitGroup)
 	cwd := &cwDest{pusher: p, retryer: logThrottleRetryer}

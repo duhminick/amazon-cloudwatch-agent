@@ -33,6 +33,7 @@ type Target struct {
 type TargetManager interface {
 	InitTarget(target Target) error
 	PutRetentionPolicy(target Target)
+	Stop()
 }
 
 type targetManager struct {
@@ -44,9 +45,11 @@ type targetManager struct {
 	mu       sync.Mutex
 	dlg      chan Target
 	prp      chan Target
+	// cache of most recent retention policy changes
+	retentionPolicyTTL *retentionPolicyTTL
 }
 
-func NewTargetManager(logger telegraf.Logger, service cloudWatchLogsService) TargetManager {
+func NewTargetManager(logger telegraf.Logger, service cloudWatchLogsService, fileStateFolder string) TargetManager {
 	tm := &targetManager{
 		logger:   logger,
 		service:  service,
@@ -54,6 +57,7 @@ func NewTargetManager(logger telegraf.Logger, service cloudWatchLogsService) Tar
 		cacheTTL: cacheTTL,
 		dlg:      make(chan Target, retentionChannelSize),
 		prp:      make(chan Target, retentionChannelSize),
+		retentionPolicyTTL: NewRetentionPolicyTTL(fileStateFolder),
 	}
 
 	go tm.processDescribeLogGroup()
@@ -92,6 +96,12 @@ func (m *targetManager) PutRetentionPolicy(target Target) {
 	if target.Retention > 0 {
 		m.logger.Debugf("sending log group %v to dlg channel by pusher", target.Group)
 		m.dlg <- target
+	}
+}
+
+func (m *targetManager) Stop() {
+	if m.retentionPolicyTTL != nil {
+		m.retentionPolicyTTL.Done()
 	}
 }
 
@@ -175,6 +185,9 @@ func (m *targetManager) createLogStream(t Target) error {
 
 func (m *targetManager) processDescribeLogGroup() {
 	for target := range m.dlg {
+		if !m.retentionPolicyTTL.IsExpired(target.Group) {
+			continue
+		}
 		for attempt := 0; attempt < numBackoffRetries; attempt++ {
 			currentRetention, err := m.getRetention(target)
 			if err != nil {
@@ -187,7 +200,9 @@ func (m *targetManager) processDescribeLogGroup() {
 				m.logger.Debugf("queueing log group %v to update retention policy", target.Group)
 				m.prp <- target
 			}
-			break // no change in retention
+			// no change in retention
+			m.retentionPolicyTTL.Update(target.Group)
+			break
 		}
 	}
 }
@@ -216,6 +231,9 @@ func (m *targetManager) getRetention(target Target) (int, error) {
 
 func (m *targetManager) processPutRetentionPolicy() {
 	for target := range m.prp {
+		if !m.retentionPolicyTTL.IsExpired(target.Group) {
+			continue
+		}
 		var updated bool
 		for attempt := 0; attempt < numBackoffRetries; attempt++ {
 			err := m.updateRetentionPolicy(target)
@@ -230,6 +248,8 @@ func (m *targetManager) processPutRetentionPolicy() {
 
 		if !updated {
 			m.logger.Errorf("failed to update retention policy for target %v after %d attempts", target, numBackoffRetries)
+		} else {
+			m.retentionPolicyTTL.Update(target.Group)
 		}
 	}
 }
