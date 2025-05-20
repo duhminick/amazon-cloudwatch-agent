@@ -20,9 +20,9 @@ const (
 type retentionPolicyTTL struct {
 	logger        telegraf.Logger
 	stateFilePath string
-	// oldTimestamps come from the TTL file on agent start
+	// oldTimestamps come from the TTL file on agent start. Key is escaped group name
 	oldTimestamps map[string]time.Time
-	// newTimestamps are the new TTLs that will be saved periodically and when the agent is done
+	// newTimestamps are the new TTLs that will be saved periodically and when the agent is done. Key is escaped group name
 	newTimestamps map[string]time.Time
 	mu            sync.RWMutex
 	ch            chan string
