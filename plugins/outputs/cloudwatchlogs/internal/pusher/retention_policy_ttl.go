@@ -1,12 +1,16 @@
 package pusher
 
 import (
+	"bufio"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/amazon-cloudwatch-agent/internal/logscommon"
+	"github.com/influxdata/telegraf"
 )
 
 const (
@@ -14,7 +18,8 @@ const (
 )
 
 type retentionPolicyTTL struct {
-	statePath     string
+	logger        telegraf.Logger
+	stateFilePath string
 	// oldTimestamps come from the TTL file on agent start
 	oldTimestamps map[string]time.Time
 	// newTimestamps are the new TTLs that will be saved periodically and when the agent is done
@@ -24,9 +29,10 @@ type retentionPolicyTTL struct {
 	done          chan struct{}
 }
 
-func NewRetentionPolicyTTL(fileStatePath string) *retentionPolicyTTL {
+func NewRetentionPolicyTTL(logger telegraf.Logger, fileStatePath string) *retentionPolicyTTL {
 	r := &retentionPolicyTTL{
-		statePath:     filepath.Join(fileStatePath, logscommon.RetentionPolicyTTLFileName),
+		logger:        logger,
+		stateFilePath: filepath.Join(fileStatePath, logscommon.RetentionPolicyTTLFileName),
 		oldTimestamps: make(map[string]time.Time),
 		newTimestamps: make(map[string]time.Time),
 		ch:            make(chan string, retentionChannelSize),
@@ -54,6 +60,36 @@ func (r *retentionPolicyTTL) IsExpired(group string) bool {
 }
 
 func (r *retentionPolicyTTL) loadTTLState() {
+	if _, err := os.Stat(r.stateFilePath); err != nil {
+		r.logger.Debug("retention policy ttl state file does not exist")
+		return
+	}
+
+	file, err := os.Open(r.stateFilePath)
+	if err != nil {
+		r.logger.Errorf("unable to open retention policy ttl state file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		split := strings.Split(line, ":")
+
+		group := split[0]
+		timestamp, err := strconv.ParseInt(split[1], 10, 64)
+		if err != nil {
+			r.logger.Errorf("unable to parse timestamp in retention policy ttl for group %s: %v", group, err)
+			continue
+		}
+		r.oldTimestamps[group] = time.UnixMilli(timestamp)
+	}
+
+	if err := scanner.Err(); err != nil {
+		r.logger.Errorf("error when parsing retention policy ttl state file: %v", err)
+		return
+	}
 }
 
 func (r *retentionPolicyTTL) process() {
