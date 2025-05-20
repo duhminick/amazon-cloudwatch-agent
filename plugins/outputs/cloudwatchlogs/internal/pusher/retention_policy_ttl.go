@@ -47,7 +47,7 @@ func (r *retentionPolicyTTL) Done() {
 }
 
 func (r *retentionPolicyTTL) IsExpired(group string) bool {
-	if ts, ok := r.oldTimestamps[escapeFilePath(group)]; ok {
+	if ts, ok := r.oldTimestamps[escapeLogGroup(group)]; ok {
 		return ts.Add(ttlTime).After(time.Now())
 	}
 	return false
@@ -65,9 +65,9 @@ func (r *retentionPolicyTTL) process() {
 		case group := <-r.ch:
 			r.updateTimestamp(group)
 		case <-t.C:
-			r.saveState()
+			r.saveTTLState()
 		case <-r.done:
-			r.saveState()
+			r.saveTTLState()
 			return
 		}
 	}
@@ -76,18 +76,18 @@ func (r *retentionPolicyTTL) process() {
 func (r *retentionPolicyTTL) updateTimestamp(group string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.newTimestamps[group] = time.Now()
+	r.newTimestamps[escapeLogGroup(group)] = time.Now()
 }
 
-func (r *retentionPolicyTTL) saveState() {
+func (r *retentionPolicyTTL) saveTTLState() {
 	r.mu.RLock()
 	defer r.mu.Unlock()
 }
 
-func escapeFilePath(filePath string) (escapedFilePath string) {
-	escapedFilePath = filepath.ToSlash(filePath)
-	escapedFilePath = strings.Replace(escapedFilePath, "/", "_", -1)
-	escapedFilePath = strings.Replace(escapedFilePath, " ", "_", -1)
-	escapedFilePath = strings.Replace(escapedFilePath, ":", "_", -1)
+func escapeLogGroup(group string) (escapedLogGroup string) {
+	escapedLogGroup = filepath.ToSlash(group)
+	escapedLogGroup = strings.Replace(escapedLogGroup, "/", "_", -1)
+	escapedLogGroup = strings.Replace(escapedLogGroup, " ", "_", -1)
+	escapedLogGroup = strings.Replace(escapedLogGroup, ":", "_", -1)
 	return
 }
