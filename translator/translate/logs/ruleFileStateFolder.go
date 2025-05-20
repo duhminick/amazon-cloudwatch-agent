@@ -12,7 +12,11 @@ type FileStateFolder struct {
 
 // FileStateFolder is internal value, not exposing to customer
 func (f *FileStateFolder) ApplyRule(input interface{}) (returnKey string, returnVal interface{}) {
-	return "file_state_folder", util.GetFileStateFolder()
+	res := map[string]interface{}{}
+	res["file_state_folder"] = util.GetFileStateFolder()
+	returnKey = Output_Cloudwatch_Logs
+	returnVal = res
+	return
 }
 func init() {
 	f := new(FileStateFolder)
