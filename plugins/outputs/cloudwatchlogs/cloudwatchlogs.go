@@ -65,6 +65,7 @@ type CloudWatchLogs struct {
 	//log group and stream names
 	LogStreamName string `toml:"log_stream_name"`
 	LogGroupName  string `toml:"log_group_name"`
+	FileStateFolder string `toml:"file_state_folder"`
 
 	// Retention for log group
 	RetentionInDays int `toml:"retention_in_days"`
