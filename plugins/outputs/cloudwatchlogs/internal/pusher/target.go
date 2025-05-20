@@ -57,7 +57,7 @@ func NewTargetManager(logger telegraf.Logger, service cloudWatchLogsService, fil
 		cacheTTL: cacheTTL,
 		dlg:      make(chan Target, retentionChannelSize),
 		prp:      make(chan Target, retentionChannelSize),
-		retentionPolicyTTL: NewRetentionPolicyTTL(fileStateFolder),
+		retentionPolicyTTL: NewRetentionPolicyTTL(logger, fileStateFolder),
 	}
 
 	go tm.processDescribeLogGroup()
