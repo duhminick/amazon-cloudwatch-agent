@@ -2,6 +2,7 @@ package pusher
 
 import (
 	"bufio"
+	"bytes"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -75,6 +76,9 @@ func (r *retentionPolicyTTL) loadTTLState() {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
 		split := strings.Split(line, ":")
 
 		group := split[0]
@@ -118,6 +122,17 @@ func (r *retentionPolicyTTL) updateTimestamp(group string) {
 func (r *retentionPolicyTTL) saveTTLState() {
 	r.mu.RLock()
 	defer r.mu.Unlock()
+
+	var buf bytes.Buffer
+	for group, timestamp := range r.newTimestamps {
+		buf.Write([]byte(group + ":" + strconv.FormatInt(timestamp.UnixMilli(), 10) + "\n"))
+	}
+
+	// DOMINIC: verify 0644 works as expected
+	err := os.WriteFile(r.stateFilePath, buf.Bytes(), 0644)
+	if err != nil {
+		r.logger.Errorf("unable to write retention policy ttl state file: %v", err)
+	}
 }
 
 func escapeLogGroup(group string) (escapedLogGroup string) {
