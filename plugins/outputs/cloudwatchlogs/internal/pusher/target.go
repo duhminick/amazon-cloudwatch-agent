@@ -185,8 +185,7 @@ func (m *targetManager) createLogStream(t Target) error {
 
 func (m *targetManager) processDescribeLogGroup() {
 	for target := range m.dlg {
-		if !m.retentionPolicyTTL.IsExpired(target.Group) {
-			m.retentionPolicyTTL.UpdateFromFile(target.Group)
+		if !m.isTTLExpired(target) {
 			continue
 		}
 		for attempt := 0; attempt < numBackoffRetries; attempt++ {
@@ -232,8 +231,7 @@ func (m *targetManager) getRetention(target Target) (int, error) {
 
 func (m *targetManager) processPutRetentionPolicy() {
 	for target := range m.prp {
-		if !m.retentionPolicyTTL.IsExpired(target.Group) {
-			m.retentionPolicyTTL.UpdateFromFile(target.Group)
+		if !m.isTTLExpired(target) {
 			continue
 		}
 		var updated bool
@@ -279,4 +277,14 @@ func (m *targetManager) calculateBackoff(retryCount int) time.Duration {
 		delay = maxRetryDelayTarget
 	}
 	return withJitter(delay)
+}
+
+func (m *targetManager) isTTLExpired(target Target) bool {
+	expired := m.retentionPolicyTTL.IsExpired(target.Group)
+	if expired {
+		// Persist the old timestamp from the state file so that the TTL
+		// from the last agent run is not lost
+		m.retentionPolicyTTL.UpdateFromFile(target.Group)
+	}
+	return expired
 }
