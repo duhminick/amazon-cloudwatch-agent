@@ -50,6 +50,7 @@ func NewRetentionPolicyTTL(logger telegraf.Logger, fileStatePath string) *retent
 	return r
 }
 
+// Update will update the newTimestamps to the current time that will later be persisted to disk.
 func (r *retentionPolicyTTL) Update(group string) {
 	r.ch <- payload{
 		group: group,
@@ -61,15 +62,17 @@ func (r *retentionPolicyTTL) Done() {
 	<-r.done
 }
 
+// IsExpired checks from the timestamps in the read state file at the agent start.
 func (r *retentionPolicyTTL) IsExpired(group string) bool {
 	if ts, ok := r.oldTimestamps[escapeLogGroup(group)]; ok {
+		// DOMINIC: alternatively time.Now().After(ts.Add(ttlTime)); might be easier to read
 		return ts.Add(ttlTime).Before(time.Now())
 	}
 	// Log group was not in state file -- default to expired
 	return true
 }
 
-// UpdateFromFile is used to update the cache using the timestamp from the loaded state file.
+// UpdateFromFile updates the newTimestamps cache using the timestamp from the loaded state file.
 func (r *retentionPolicyTTL) UpdateFromFile(group string) {
 	if oldTs, ok := r.oldTimestamps[escapeLogGroup(group)]; ok {
 		r.ch <- payload{
@@ -95,7 +98,6 @@ func (r *retentionPolicyTTL) loadTTLState() {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// DOMINIC: prob dont need this
 		if len(line) == 0 {
 			continue
 		}
