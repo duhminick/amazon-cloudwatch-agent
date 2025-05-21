@@ -186,6 +186,7 @@ func (m *targetManager) createLogStream(t Target) error {
 func (m *targetManager) processDescribeLogGroup() {
 	for target := range m.dlg {
 		if !m.retentionPolicyTTL.IsExpired(target.Group) {
+			m.retentionPolicyTTL.UpdateFromFile(target.Group)
 			continue
 		}
 		for attempt := 0; attempt < numBackoffRetries; attempt++ {
@@ -232,6 +233,7 @@ func (m *targetManager) getRetention(target Target) (int, error) {
 func (m *targetManager) processPutRetentionPolicy() {
 	for target := range m.prp {
 		if !m.retentionPolicyTTL.IsExpired(target.Group) {
+			m.retentionPolicyTTL.UpdateFromFile(target.Group)
 			continue
 		}
 		var updated bool

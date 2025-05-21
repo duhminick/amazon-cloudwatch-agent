@@ -18,6 +18,11 @@ const (
 	ttlTime = 5 * time.Minute
 )
 
+type payload struct {
+	group     string
+	timestamp time.Time
+}
+
 type retentionPolicyTTL struct {
 	logger        telegraf.Logger
 	stateFilePath string
@@ -26,7 +31,7 @@ type retentionPolicyTTL struct {
 	// newTimestamps are the new TTLs that will be saved periodically and when the agent is done. Key is escaped group name
 	newTimestamps map[string]time.Time
 	mu            sync.RWMutex
-	ch            chan string
+	ch            chan payload
 	done          chan struct{}
 }
 
@@ -36,7 +41,7 @@ func NewRetentionPolicyTTL(logger telegraf.Logger, fileStatePath string) *retent
 		stateFilePath: filepath.Join(fileStatePath, logscommon.RetentionPolicyTTLFileName),
 		oldTimestamps: make(map[string]time.Time),
 		newTimestamps: make(map[string]time.Time),
-		ch:            make(chan string, retentionChannelSize),
+		ch:            make(chan payload, retentionChannelSize),
 		done:          make(chan struct{}),
 	}
 
@@ -46,7 +51,10 @@ func NewRetentionPolicyTTL(logger telegraf.Logger, fileStatePath string) *retent
 }
 
 func (r *retentionPolicyTTL) Update(group string) {
-	r.ch <- group
+	r.ch <- payload{
+		group: group,
+		timestamp: time.Now(),
+	}
 }
 
 func (r *retentionPolicyTTL) Done() {
@@ -55,9 +63,20 @@ func (r *retentionPolicyTTL) Done() {
 
 func (r *retentionPolicyTTL) IsExpired(group string) bool {
 	if ts, ok := r.oldTimestamps[escapeLogGroup(group)]; ok {
-		return ts.Add(ttlTime).After(time.Now())
+		return ts.Add(ttlTime).Before(time.Now())
 	}
-	return false
+	// Log group was not in state file -- default to expired
+	return true
+}
+
+// UpdateFromFile is used to update the cache using the timestamp from the loaded state file.
+func (r *retentionPolicyTTL) UpdateFromFile(group string) {
+	if oldTs, ok := r.oldTimestamps[escapeLogGroup(group)]; ok {
+		r.ch <- payload{
+			group: group,
+			timestamp: oldTs,
+		}
+	}
 }
 
 func (r *retentionPolicyTTL) loadTTLState() {
@@ -103,8 +122,8 @@ func (r *retentionPolicyTTL) process() {
 
 	for {
 		select {
-		case group := <-r.ch:
-			r.updateTimestamp(group)
+		case payload := <-r.ch:
+			r.updateTimestamp(payload.group, payload.timestamp)
 		case <-t.C:
 			r.saveTTLState()
 		case <-r.done:
@@ -114,10 +133,10 @@ func (r *retentionPolicyTTL) process() {
 	}
 }
 
-func (r *retentionPolicyTTL) updateTimestamp(group string) {
+func (r *retentionPolicyTTL) updateTimestamp(group string, timestamp time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.newTimestamps[escapeLogGroup(group)] = time.Now()
+	r.newTimestamps[escapeLogGroup(group)] = timestamp
 }
 
 func (r *retentionPolicyTTL) saveTTLState() {
