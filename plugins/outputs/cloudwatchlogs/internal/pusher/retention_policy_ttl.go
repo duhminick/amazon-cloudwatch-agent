@@ -122,7 +122,7 @@ func (r *retentionPolicyTTL) updateTimestamp(group string) {
 
 func (r *retentionPolicyTTL) saveTTLState() {
 	r.mu.RLock()
-	defer r.mu.Unlock()
+	defer r.mu.RUnlock()
 
 	var buf bytes.Buffer
 	for group, timestamp := range r.newTimestamps {
