@@ -128,6 +128,7 @@ func (ts *tailerSrc) SetOutput(fn func(logs.LogEvent)) {
 	}
 	ts.outputFn = fn
 	ts.startTailerOnce.Do(func() {
+		// DOMINIC: runs it here
 		go ts.runTail()
 		if ts.backpressureFdDrop {
 			go ts.runSender()
@@ -183,6 +184,7 @@ func (ts *tailerSrc) Entity() *cloudwatchlogs.Entity {
 	return nil
 }
 
+// DOMINIC: calls publish event when look at the Lines channel
 func (ts *tailerSrc) runTail() {
 	defer ts.cleanUp()
 	t := time.NewTicker(multilineWaitPeriod)

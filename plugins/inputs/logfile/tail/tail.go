@@ -17,6 +17,7 @@ import (
 	"github.com/influxdata/telegraf/models"
 	"gopkg.in/tomb.v1"
 
+	"github.com/aws/amazon-cloudwatch-agent/internal/state"
 	"github.com/aws/amazon-cloudwatch-agent/plugins/inputs/logfile/tail/watch"
 )
 
@@ -54,10 +55,11 @@ type limiter interface {
 type Config struct {
 	// File-specifc
 	Location    *SeekInfo // Seek to this location before tailing
-	ReOpen      bool      // Reopen recreated files (tail -F)
-	MustExist   bool      // Fail early if the file does not exist
-	Poll        bool      // Poll for file changes instead of using inotify
-	Pipe        bool      // Is a named pipe (mkfifo)
+	RangeList   state.RangeList // Seek to these ranges before we seek to Location
+	ReOpen      bool // Reopen recreated files (tail -F)
+	MustExist   bool // Fail early if the file does not exist
+	Poll        bool // Poll for file changes instead of using inotify
+	Pipe        bool // Is a named pipe (mkfifo)
 	RateLimiter limiter
 
 	// Generic IO
@@ -343,7 +345,55 @@ func (tail *Tail) tailFileSync() {
 	// openReader should be invoked before seekTo
 	tail.openReader()
 
+	// CINIMOD: still need to check if only the max offset needs to be used
+	// CINIMOD: we also need a check to see if the end offset is unbounded, skip that
+	if tail.RangeList != nil && len(tail.RangeList) > 0 {
+		for _, seekRange := range tail.RangeList {
+			// DOMINIC: this should only be the last item
+			if seekRange.IsEndOffsetUnbounded() {
+				continue
+			}
+
+			tail.Logger.Infof("DOMINIC: seeking to %+v", seekRange)
+			err := tail.seekTo(SeekInfo{Offset: seekRange.StartOffsetInt64(), Whence: io.SeekStart})
+			if err != nil {
+				tail.Logger.Infof("DOMINIC: failed seeking to %+v", seekRange)
+				continue
+			}
+
+			for tail.curOffset < seekRange.EndOffsetInt64() {
+				line, err := tail.readLine()
+				tail.Logger.Infof("DOMINIC: read the line: %s", line)
+
+				if err == nil {
+					tail.Logger.Infof("DOMINIC: sending the line: %s", line)
+					tail.sendLine(line, tail.curOffset)
+				} else if err == io.EOF {
+					tail.Logger.Info("DOMINIC: eof error")
+					// will this even happen..? maybe if the state file is corrupted?
+					// maybe this even needs to exit this loop here
+					// it's prob fine to break since the offset should be sorted
+					// CINIMOD: done - somewhere we can check to see if the end is past the file size
+					// CINIMOD: should we break the outer loop too?
+					break
+				}
+				// CINIMOD: should the tail be killed if we get some other error?
+				// probably...?
+
+				select {
+				case <-tail.Dying():
+					if tail.Err() == errStopAtEOF {
+						continue
+					}
+					return
+				default:
+				}
+			}
+		}
+	}
+
 	// Seek to requested location on first open of the file.
+	// DOMINIC: is this null....?
 	if tail.Location != nil {
 		err := tail.seekTo(*tail.Location)
 		tail.Logger.Debugf("Seeked %s - %+v\n", tail.Filename, tail.Location)
@@ -366,9 +416,11 @@ func (tail *Tail) tailFileSync() {
 			backupOffset = tail.curOffset
 		}
 		line, err := tail.readLine()
+		tail.Logger.Infof("DOMINIC: loop read the line: %s\n", line)
 
 		// Process `line` even if err is EOF.
 		if err == nil {
+			// DOMINIC: sends to the Lines channel
 			cooloff := !tail.sendLine(line, tail.curOffset)
 			if cooloff {
 				// Wait a second before seeking till the end of

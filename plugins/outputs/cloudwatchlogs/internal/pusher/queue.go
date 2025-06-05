@@ -108,6 +108,7 @@ func (q *queue) AddEventNonBlocking(e logs.LogEvent) {
 // start is the main loop for processing events and managing the queue.
 func (q *queue) start() {
 	defer q.wg.Done()
+	// DOMINIC: merges eventsCh into mergeChan
 	mergeChan := make(chan logs.LogEvent)
 
 	// Merge events from both blocking and non-blocking channel
@@ -131,6 +132,7 @@ func (q *queue) start() {
 
 	for {
 		select {
+		// DOMINIC: this is where the logs get actually sent to cloudwatch
 		case e := <-mergeChan:
 			// Start timer when first event of the batch is added (happens after a flush timer timeout)
 			if len(q.batch.events) == 0 {

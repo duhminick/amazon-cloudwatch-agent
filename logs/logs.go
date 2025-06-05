@@ -131,6 +131,7 @@ func (l *LogAgent) Run(ctx context.Context) {
 					dest := backend.CreateDest(logGroup, logStream, retention, logGroupClass, src)
 					l.destNames[dest] = dname
 					log.Printf("I! [logagent] piping log from %s/%s(%s) to %s with retention %d", logGroup, logStream, description, dname, retention)
+					// DOMINIC: sets up the output function and will publish events here
 					go l.runSrcToDest(src, dest)
 				}
 			}
@@ -145,6 +146,7 @@ func (l *LogAgent) runSrcToDest(src LogSrc, dest LogDest) {
 	defer src.Stop()
 
 	closed := false
+	// DOMINIC: yeah
 	src.SetOutput(func(e LogEvent) {
 		if closed {
 			return

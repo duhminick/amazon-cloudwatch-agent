@@ -190,7 +190,7 @@ func (t *LogFile) FindLogSrc() []logs.LogSrc {
 			stateManager := state.NewFileRangeManager(state.ManagerConfig{
 				StateFileDir:    t.FileStateFolder,
 				Name:            filename,
-				MaxPersistItems: 1, // TODO: Base this on the number of threads
+				MaxPersistItems: 10, // TODO: Base this on the number of threads
 			})
 
 			var seekFile *tail.SeekInfo
@@ -201,16 +201,27 @@ func (t *LogFile) FindLogSrc() []logs.LogSrc {
 				seekFile = &tail.SeekInfo{Whence: io.SeekEnd, Offset: 0}
 			}
 
+			var rangeList state.RangeList
+			if !restored.OnlyUseMaxOffset() {
+				rangeList = state.InvertRanges(restored)
+			}
+
+			t.Log.Infof("DOMINIC: range list %+v", restored)	
+			t.Log.Infof("DOMINIC: inverted range list %+v", rangeList)	
+
 			isutf16 := false
 			if fileconfig.Encoding == "utf-16" || fileconfig.Encoding == "utf-16le" || fileconfig.Encoding == "UTF-16" || fileconfig.Encoding == "UTF-16LE" {
 				isutf16 = true
 			}
 
+			stateRange := &state.Range{}
+			stateRange.Set(10, 20)
 			tailer, err := tail.TailFile(filename,
 				tail.Config{
 					ReOpen:      false,
 					Follow:      true,
 					Location:    seekFile,
+					RangeList:   rangeList,
 					MustExist:   true,
 					Pipe:        fileconfig.Pipe,
 					Poll:        true,
