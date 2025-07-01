@@ -261,6 +261,57 @@ func TestReadGaps(t *testing.T) {
 			state.NewRange(0, 9),
 		})
 	})
+	t.Run("TestScenario", func(t *testing.T) {
+		rl := state.RangeList{
+			state.NewRange(4, 8),
+			state.NewRange(10, 13),
+		}
+		elog, _ := newTestEventLogWithState(t, NAME, LEVELS, rl)
+		mockAPI := NewMockWindowsEventAPI()
+		winEventAPI = mockAPI
+
+		mockAPI.AddMockEventsForQuery(createMockEventRecordsRange(0, 4))
+		mockAPI.AddMockEventsForQuery(createMockEventRecordsRange(4, 8))
+		mockAPI.AddMockEventsForQuery(createMockEventRecordsRange(8, 10))
+		mockAPI.AddMockEventsForQuery(createMockEventRecordsRange(13, 15))
+
+		elog.Init()
+
+		var records []logs.LogEvent
+		// SetOutput calls run as well hence the omission of elog.run()
+		elog.SetOutput(func(e logs.LogEvent) {
+			records = append(records, e)
+			e.Done()
+		})
+		time.Sleep(8 * time.Second)
+		elog.Stop()
+
+		fmt.Printf("DOMINIC: query calls %v\n", mockAPI.QueryCalls)
+
+		// expectedRecords := []int{
+		// 	1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 21, 22, 23, 24, 25,
+		// }
+		//
+		// assert.Empty(t, elog.gapsToRead, "Gaps should be cleared after reading")
+		// assert.Len(t, records, len(expectedRecords), "Should return correct number of mock events")
+		// assert.Len(t, mockAPI.QueryCalls, 3, "Should make three query calls")
+		// assert.Equal(t, NAME, mockAPI.QueryCalls[0].Path, "Should query correct path")
+		// assert.Contains(t, mockAPI.QueryCalls[0].Query, "EventRecordID &gt; 0", "Query should contain start range")
+		// assert.Contains(t, mockAPI.QueryCalls[0].Query, "EventRecordID &lt;= 5", "Query should contain end range")
+		// assert.Contains(t, mockAPI.QueryCalls[1].Query, "EventRecordID &gt; 10", "Query should contain start range")
+		// assert.Contains(t, mockAPI.QueryCalls[1].Query, "EventRecordID &lt;= 15", "Query should contain end range")
+		// assert.Contains(t, mockAPI.QueryCalls[2].Query, "EventRecordID &gt; 20", "Query should contain start range")
+		// assert.Contains(t, mockAPI.QueryCalls[2].Query, "EventRecordID &lt;= 25", "Query should contain end range")
+		// assert.Greater(t, len(mockAPI.CloseCalls), 0, "Should make close calls")
+		//
+		// for i, record := range records {
+		// 	assert.Contains(t, record.Message(), fmt.Sprintf("Event %d", expectedRecords[i]))
+		// }
+		//
+		// assertStateFileRange(t, stateFileName, state.RangeList{
+		// 	state.NewRange(0, 30),
+		// })
+	})
 }
 
 // seekToEnd skips past all current events in the event log.
