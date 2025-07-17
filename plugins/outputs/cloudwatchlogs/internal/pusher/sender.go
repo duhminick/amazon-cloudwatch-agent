@@ -87,6 +87,7 @@ func (s *sender) Send(batch *logEventBatch) {
 		var awsErr awserr.Error
 		if !errors.As(err, &awsErr) {
 			s.logger.Errorf("Non aws error received when sending logs to %v/%v: %v. CloudWatch agent will not retry and logs will be missing!", batch.Group, batch.Stream, err)
+			batch.updateStateOnly()
 			return
 		}
 
@@ -94,14 +95,17 @@ func (s *sender) Send(batch *logEventBatch) {
 		case *cloudwatchlogs.ResourceNotFoundException:
 			if targetErr := s.targetManager.InitTarget(batch.Target); targetErr != nil {
 				s.logger.Errorf("Unable to create log stream %v/%v: %v", batch.Group, batch.Stream, targetErr)
+				batch.updateStateOnly()
 				break
 			}
 		case *cloudwatchlogs.InvalidParameterException,
 			*cloudwatchlogs.DataAlreadyAcceptedException:
 			s.logger.Errorf("%v, will not retry the request", e)
+			batch.updateStateOnly()
 			return
 		default:
 			s.logger.Errorf("Aws error received when sending logs to %v/%v: %v", batch.Group, batch.Stream, awsErr)
+			batch.updateStateOnly()
 		}
 
 		// retry wait strategy depends on the type of error returned
@@ -127,6 +131,7 @@ func (s *sender) Send(batch *logEventBatch) {
 		select {
 		case <-s.stop:
 			s.logger.Errorf("Stop requested after %v retries to %v/%v failed for PutLogEvents, request dropped.", retryCountShort+retryCountLong-1, batch.Group, batch.Stream)
+			batch.updateStateOnly()
 			return
 		case <-time.After(wait):
 		}
