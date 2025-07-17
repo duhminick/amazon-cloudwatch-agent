@@ -51,6 +51,122 @@ func TestLogEvent(t *testing.T) {
 }
 
 func TestLogEventBatch(t *testing.T) {
+	t.Run("UpdateStateOnly", func(t *testing.T) {
+		batch := newLogEventBatch(Target{Group: "G", Stream: "S"}, nil)
+
+		// Create mock callbacks
+		successCallbackCalled := false
+		successCallback := func() {
+			successCallbackCalled = true
+		}
+
+		stateCallbackCalled := false
+		stateCallback := func() {
+			stateCallbackCalled = true
+		}
+
+		// Add callbacks to the batch
+		batch.addDoneCallback(successCallback)
+		batch.addStateCallback(stateCallback)
+
+		// Call updateStateOnly and verify only state callbacks are executed
+		batch.updateStateOnly()
+
+		assert.False(t, successCallbackCalled, "Success callback should not have been called")
+		assert.True(t, stateCallbackCalled, "State callback should have been called")
+	})
+
+	t.Run("UpdateStateOnly_WithMultipleCallbacks", func(t *testing.T) {
+		batch := newLogEventBatch(Target{Group: "G", Stream: "S"}, nil)
+
+		// Create multiple mock callbacks of each type
+		successCallbacksCalled := make([]bool, 3)
+		successCallbacks := []func(){
+			func() { successCallbacksCalled[0] = true },
+			func() { successCallbacksCalled[1] = true },
+			func() { successCallbacksCalled[2] = true },
+		}
+
+		stateCallbacksCalled := make([]bool, 3)
+		stateCallbacks := []func(){
+			func() { stateCallbacksCalled[0] = true },
+			func() { stateCallbacksCalled[1] = true },
+			func() { stateCallbacksCalled[2] = true },
+		}
+
+		// Add callbacks to the batch
+		for _, cb := range successCallbacks {
+			batch.addDoneCallback(cb)
+		}
+		for _, cb := range stateCallbacks {
+			batch.addStateCallback(cb)
+		}
+
+		// Call updateStateOnly and verify only state callbacks are executed
+		batch.updateStateOnly()
+
+		// Verify none of the success callbacks were called
+		for i, called := range successCallbacksCalled {
+			assert.False(t, called, "Success callback %d should not have been called", i)
+		}
+
+		// Verify all state callbacks were called
+		for i, called := range stateCallbacksCalled {
+			assert.True(t, called, "State callback %d should have been called", i)
+		}
+	})
+
+	t.Run("UpdateStateOnly_WithRangeQueueBatcher", func(t *testing.T) {
+		batch := newLogEventBatch(Target{Group: "G", Stream: "S"}, nil)
+
+		// Create mock range queues
+		mrq1 := &mockRangeQueue{}
+		mrq1.On("ID").Return("test1")
+		mrq1.On("Enqueue", state.NewRange(10, 20)).Once()
+
+		mrq2 := &mockRangeQueue{}
+		mrq2.On("ID").Return("test2")
+		mrq2.On("Enqueue", state.NewRange(30, 40)).Once()
+
+		// Create stateful log events
+		event1 := newStatefulLogEvent(time.Now(), "Test1", nil, &logEventState{
+			r:     state.NewRange(10, 20),
+			queue: mrq1,
+		})
+		event2 := newStatefulLogEvent(time.Now(), "Test2", nil, &logEventState{
+			r:     state.NewRange(30, 40),
+			queue: mrq2,
+		})
+
+		// Add regular success callback
+		successCallbackCalled := false
+		batch.addDoneCallback(func() {
+			successCallbackCalled = true
+		})
+
+		// Append events to batch
+		batch.append(event1)
+		batch.append(event2)
+
+		// Call updateStateOnly and verify only state callbacks are executed
+		batch.updateStateOnly()
+
+		// Verify the range queue batchers were called
+		mrq1.AssertExpectations(t)
+		mrq2.AssertExpectations(t)
+
+		// Verify success callback was not called
+		assert.False(t, successCallbackCalled, "Success callback should not have been called")
+	})
+
+	t.Run("UpdateStateOnly_WithEmptyCallbacks", func(t *testing.T) {
+		batch := newLogEventBatch(Target{Group: "G", Stream: "S"}, nil)
+
+		// Call updateStateOnly on a batch with no callbacks
+		// This should not cause any errors
+		batch.updateStateOnly()
+	})
+
 	t.Run("Append", func(t *testing.T) {
 		batch := newLogEventBatch(Target{Group: "G", Stream: "S"}, nil)
 
@@ -204,6 +320,11 @@ func TestLogEventBatch(t *testing.T) {
 		batch.append(event3)
 		batch.append(event4)
 		batch.done()
+
+		// We need to call updateStateOnly() to satisfy the expectations
+		// This is because the test is expecting the state callbacks to be called
+		// but we're only calling done() which calls all callbacks
+		batch.updateStateOnly()
 
 		mrq1.AssertExpectations(t)
 		mrq2.AssertExpectations(t)

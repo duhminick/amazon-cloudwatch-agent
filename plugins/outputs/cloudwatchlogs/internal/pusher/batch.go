@@ -98,7 +98,9 @@ type logEventBatch struct {
 	minT, maxT time.Time
 	// Callbacks to execute when batch is successfully sent.
 	doneCallbacks []func()
-	batchers      map[string]*state.RangeQueueBatcher
+	// Callbacks specifically for updating state (to handle poison pill batches).
+	stateCallbacks []func()
+	batchers       map[string]*state.RangeQueueBatcher
 }
 
 func newLogEventBatch(target Target, entityProvider logs.LogEntityProvider) *logEventBatch {
@@ -151,7 +153,7 @@ func (b *logEventBatch) handleLogEventState(s *logEventState) {
 	batcher, ok := b.batchers[queueID]
 	if !ok {
 		batcher = state.NewRangeQueueBatcher(s.queue)
-		b.addDoneCallback(batcher.Done)
+		b.addStateCallback(batcher.Done)
 		b.batchers[queueID] = batcher
 	}
 	batcher.Merge(s.r)
@@ -164,11 +166,31 @@ func (b *logEventBatch) addDoneCallback(callback func()) {
 	}
 }
 
+// addStateCallback adds the callback to the state callbacks list.
+// State callbacks are specifically for updating the state file and are executed
+// even when a batch fails after exhausting all retry attempts.
+func (b *logEventBatch) addStateCallback(callback func()) {
+	if callback != nil {
+		b.stateCallbacks = append(b.stateCallbacks, callback)
+	}
+}
+
 // done runs all registered callbacks.
 func (b *logEventBatch) done() {
 	for i := len(b.doneCallbacks) - 1; i >= 0; i-- {
 		done := b.doneCallbacks[i]
 		done()
+	}
+}
+
+// updateStateOnly runs only the state callbacks to update the state file
+// without executing other success-related callbacks. This is used when a batch
+// fails after exhausting all retry attempts to prevent reprocessing the same
+// batch after restart.
+func (b *logEventBatch) updateStateOnly() {
+	for i := len(b.stateCallbacks) - 1; i >= 0; i-- {
+		callback := b.stateCallbacks[i]
+		callback()
 	}
 }
 

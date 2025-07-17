@@ -61,12 +61,20 @@ func (c *converter) convert(e logs.LogEvent) *logEvent {
 		c.lastUpdateTime = now
 		c.lastWarnMessage = time.Time{}
 	}
+
+	// Handle stateful log events separately to ensure state callbacks are registered properly
 	var state *logEventState
 	if sle, ok := e.(logs.StatefulLogEvent); ok {
 		state = &logEventState{
 			r:     sle.Range(),
 			queue: sle.RangeQueue(),
 		}
+		// For stateful log events, the Done callback is not used directly
+		// Instead, the state is handled by the batch.handleLogEventState method
+		// which registers state callbacks separately
+		return newStatefulLogEvent(t, message, nil, state)
 	}
+
+	// For regular log events, use the Done callback as before
 	return newStatefulLogEvent(t, message, e.Done, state)
 }

@@ -161,7 +161,13 @@ func (q *queue) start() {
 // send the current batch of events.
 func (q *queue) send() {
 	if len(q.batch.events) > 0 {
+		// Add the success callback to the regular callbacks
 		q.batch.addDoneCallback(q.onSuccessCallback(q.batch.bufferedSize))
+
+		// Add a separate state callback for updating the state file
+		// This will be called even if the batch fails after exhausting all retry attempts
+		q.batch.addStateCallback(q.onStateUpdateCallback())
+
 		q.sender.Send(q.batch)
 		q.batch = newLogEventBatch(q.target, q.entityProvider)
 	}
@@ -173,6 +179,19 @@ func (q *queue) onSuccessCallback(bufferedSize int) func() {
 		q.lastSentTime.Store(time.Now())
 		go q.addStats("rawSize", float64(bufferedSize))
 		q.resetFlushTimer()
+	}
+}
+
+// onStateUpdateCallback returns a callback function to be executed to update the state file.
+// This callback is executed even when a batch fails after exhausting all retry attempts.
+func (q *queue) onStateUpdateCallback() func() {
+	return func() {
+		// This callback is intentionally empty as the actual state update
+		// is handled by the RangeQueueBatcher callbacks that are registered
+		// separately in the batch.handleLogEventState method.
+		//
+		// This method exists as a hook for any future state-related operations
+		// that need to happen for all batches, successful or failed.
 	}
 }
 

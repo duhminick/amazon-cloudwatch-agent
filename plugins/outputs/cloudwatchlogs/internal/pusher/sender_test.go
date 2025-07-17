@@ -58,6 +58,26 @@ func (m *mockTargetManager) PutRetentionPolicy(target Target) {
 	m.Called(target)
 }
 
+// mockLogEventBatch is a mock implementation of logEventBatch for testing
+type mockLogEventBatch struct {
+	mock.Mock
+	Target
+	events []*cloudwatchlogs.InputLogEvent
+}
+
+func (m *mockLogEventBatch) build() *cloudwatchlogs.PutLogEventsInput {
+	args := m.Called()
+	return args.Get(0).(*cloudwatchlogs.PutLogEventsInput)
+}
+
+func (m *mockLogEventBatch) done() {
+	m.Called()
+}
+
+func (m *mockLogEventBatch) updateStateOnly() {
+	m.Called()
+}
+
 func TestSender(t *testing.T) {
 	logger := testutil.NewNopLogger()
 
@@ -175,6 +195,32 @@ func TestSender(t *testing.T) {
 		s.Send(batch)
 
 		mockService.AssertExpectations(t)
+	})
+
+	t.Run("UpdateStateOnRetryExhaustion", func(t *testing.T) {
+		// Create a real batch with a state callback we can track
+		batch := newLogEventBatch(Target{Group: "G", Stream: "S"}, nil)
+		batch.append(newLogEvent(time.Now(), "Test message", nil))
+
+		// Add a state callback we can track
+		stateCallbackCalled := false
+		batch.addStateCallback(func() {
+			stateCallbackCalled = true
+		})
+
+		mockService := new(mockLogsService)
+		mockManager := new(mockTargetManager)
+		mockService.On("PutLogEvents", mock.Anything).
+			Return(&cloudwatchlogs.PutLogEventsOutput{}, awserr.New("SomeAWSError", "Some AWS error", nil)).Once()
+
+		s := newSender(logger, mockService, mockManager, 100*time.Millisecond, make(chan struct{}))
+		s.Send(batch)
+
+		mockService.AssertExpectations(t)
+		// Verify that the state callback was called, indicating updateStateOnly was executed
+		if !stateCallbackCalled {
+			t.Error("State callback was not called when retry attempts were exhausted")
+		}
 	})
 
 	t.Run("StopChannelClosed", func(t *testing.T) {

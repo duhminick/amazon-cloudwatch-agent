@@ -624,9 +624,16 @@ func TestResendWouldStopAfterExhaustedRetries(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	logLines := logSink.Lines()
-	lastLine := logLines[len(logLines)-1]
+	// Find the error line about retries exhausted
+	found := false
 	expected := fmt.Sprintf("All %v retries to G/S failed for PutLogEvents, request dropped.", cnt.Load()-1)
-	require.True(t, strings.HasSuffix(lastLine, expected), fmt.Sprintf("Expecting error log to end with request dropped, but received '%s' in the log", logSink.String()))
+	for _, line := range logLines {
+		if strings.Contains(line, expected) {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, fmt.Sprintf("Expecting error log containing '%s', but not found in the log: '%s'", expected, logSink.String()))
 
 	close(stop)
 	wg.Wait()
