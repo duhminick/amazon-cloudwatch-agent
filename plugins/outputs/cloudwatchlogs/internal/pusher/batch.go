@@ -175,8 +175,12 @@ func (b *logEventBatch) addStateCallback(callback func()) {
 	}
 }
 
-// done runs all registered callbacks.
+// done runs all registered callbacks, including both success callbacks and state callbacks.
 func (b *logEventBatch) done() {
+	// First run the state callbacks to ensure state is updated
+	b.updateStateOnly()
+
+	// Then run the regular done callbacks
 	for i := len(b.doneCallbacks) - 1; i >= 0; i-- {
 		done := b.doneCallbacks[i]
 		done()

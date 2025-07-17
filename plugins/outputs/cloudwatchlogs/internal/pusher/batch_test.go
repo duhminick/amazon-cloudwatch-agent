@@ -321,10 +321,8 @@ func TestLogEventBatch(t *testing.T) {
 		batch.append(event4)
 		batch.done()
 
-		// We need to call updateStateOnly() to satisfy the expectations
-		// This is because the test is expecting the state callbacks to be called
-		// but we're only calling done() which calls all callbacks
-		batch.updateStateOnly()
+		// Note: We no longer need to call updateStateOnly() explicitly
+		// because batch.done() now calls it internally
 
 		mrq1.AssertExpectations(t)
 		mrq2.AssertExpectations(t)
